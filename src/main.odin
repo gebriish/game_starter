@@ -6,6 +6,7 @@ import "core:math"
 
 import "engine:app"
 import "engine:render"
+import "engine:ui"
 
 /*
 COLOR PALETTE 
@@ -47,64 +48,37 @@ core_app_init :: proc()
 {
   render.init()
 
-
   camera.size = app.get_resolution()
   render.update_view(&camera)
-  render.update_ui_proj(&camera)
+  render.update_proj(&camera)
 
   render.upload_projection(&camera)
   render.upload_view(&camera)
 }
 
-
 core_app_frame :: proc() 
 {
-  render.update_view(&camera)
-  render.upload_view(&camera)
+  delta_time := app.get_delta_time()
+  window_resolution :=app.get_resolution()
+  cursor_pos := app.get_cursor_pos()
 
-  render.clear_frame(COLOR_PALETTE[0])
-  render.begin_frame()
+  render.wireframe_mode(app.is_key_pressed(app.KEY_W))
 
-  if app.is_key_pressed(app.KEY_M) {
-    render.wireframe_mode(true)
-  }
-  else if app.is_key_pressed(app.KEY_N) {
-    render.wireframe_mode(false)
-  }
+  ui.begin_frame(window_resolution)
+ 
+  ui.end_frame()
 
-  @(static) select_begin : [2]f32
-
-  if app.is_mouse_pressed(app.MOUSE_BUTTON_RIGHT) {
-    select_begin = app.get_cursor_pos()
-  }
-
-  if app.is_mouse_down(app.MOUSE_BUTTON_RIGHT) {
-    cursor_pos := app.get_cursor_pos()
-
-    begin_pos := [2]f32 {math.min(select_begin.x, cursor_pos.x), math.min(select_begin.y, cursor_pos.y)}
-    end_pos := [2]f32 {math.max(select_begin.x, cursor_pos.x), math.max(select_begin.y, cursor_pos.y)}
-    
-    {
-      render.push_rect(
-        begin_pos,
-        end_pos - begin_pos,
-        render.hex_code_to_4f({hexcode = 0xebdbc7ff}),
-        0.0,
-        4.0,
-      )
-
-    }
-  }
-
-  render.end_frame()
+  
+  render.begin_frame();
+  render.end_frame();
 }
 
 core_app_resize :: proc(width, height : i32)
 {
-  render.set_viewport(width, height)
   camera.size = {cast(f32) width, cast(f32) height}
   render.update_ui_proj(&camera)
   render.upload_projection(&camera)
+  render.set_viewport(width, height)
 }
 
 core_app_shutdown :: proc() 

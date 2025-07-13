@@ -1,9 +1,10 @@
 package app
-
+import "base:runtime"
 import "vendor:glfw"
 
-@(private = "file") _key_states : [glfw.KEY_LAST + 1] u8 = 0
-@(private = "file") _mouse_button_states : [glfw.MOUSE_BUTTON_LAST + 1] u8 = 0
+_key_states : [glfw.KEY_LAST + 1] u8 = 0
+_mouse_button_states : [glfw.MOUSE_BUTTON_LAST + 1] u8 = 0
+_mouse_scroll : [2]f32
 
 get_cursor_pos :: proc() -> [2]f32 
 {
@@ -13,35 +14,40 @@ get_cursor_pos :: proc() -> [2]f32
 
 is_key_pressed :: proc(keycode : i32) -> bool
 {
-  return (_key_states[keycode] & 1 != 0) && (_key_states[keycode] >> 1 & 1 == 0)
+  return _key_states[keycode] & 1 != 0
 }
 
-is_key_released :: proc(keycode : i32) -> bool
+is_key_up :: proc(keycode : i32) -> bool
 {
   return (_key_states[keycode] & 1 == 0) && (_key_states[keycode] >> 1 & 1 != 0)
 }
 
 is_key_down :: proc(keycode : i32) -> bool
 {
-  return _key_states[keycode] & 1 != 0
+  return (_key_states[keycode] & 1 != 0) && (_key_states[keycode] >> 1 & 1 == 0)
 }
 
 is_mouse_down :: proc(button : i32) -> bool 
 {
-  return _mouse_button_states[button] & 1 != 0
+  return  (_mouse_button_states[button] & 1 != 0) && (_mouse_button_states[button] >> 1 & 1 == 0)
 }
 
 is_mouse_pressed :: proc(button : i32) -> bool 
 {
-  return  (_mouse_button_states[button] & 1 != 0) && (_mouse_button_states[button] >> 1 & 1 == 0)
+  return _mouse_button_states[button] & 1 != 0
 }
 
-is_mouse_released :: proc(button : i32) -> bool 
+is_mouse_up :: proc(button : i32) -> bool 
 {
   return  (_mouse_button_states[button] & 1 == 0) && (_mouse_button_states[button] >> 1 & 1 != 0)
 }
 
-@(private) input_update_frame :: proc() 
+get_mouse_scroll :: proc() -> [2]f32 
+{
+  return _mouse_scroll
+}
+
+_input_update_frame :: proc() 
 {
   for i in 0..<len(_key_states) {
     state := &_key_states[i]
@@ -58,4 +64,12 @@ is_mouse_released :: proc(button : i32) -> bool
       state^ |= 1
     }
   }
+  
+  _mouse_scroll = 0
+}
+
+_input_scroll_callback :: proc "c" (window : glfw.WindowHandle, x, y : f64)
+{
+  context = runtime.default_context()
+  _mouse_scroll = {f32(x), f32(y)}
 }

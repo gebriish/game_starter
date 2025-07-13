@@ -25,7 +25,7 @@ update_view :: proc(camera : ^Camera)
 update_proj :: proc(camera : ^Camera)
 {
   half_size := camera.size * camera.scale * 0.5
-  camera.projection = linalg.matrix_ortho3d(-half_size.x, half_size.x, -half_size.y, half_size.y, -1.0, 1000.0, false)
+  camera.projection = linalg.matrix_ortho3d(-half_size.x, half_size.x, half_size.y, -half_size.y, -1.0, 1000.0, false)
 }
 
 update_ui_proj :: proc(camera : ^Camera)

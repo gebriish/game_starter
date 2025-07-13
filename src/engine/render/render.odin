@@ -7,6 +7,8 @@ import "core:os"
 
 import "vendor:glfw"
 import gl "vendor:OpenGL"
+import stbi "vendor:stb/image"
+import stbt "vendor:stb/truetype"
 
 @(private="file") _render_state : struct {
   vao : u32,
@@ -58,7 +60,10 @@ unload_texture :: proc(id: u32) {
 init :: proc()
 {
   gl.load_up_to(_GL_VERSION_MAJOR, _GL_VERSION_MINOR, glfw.gl_set_proc_address)
+
   gl.Enable(gl.MULTISAMPLE)
+  gl.Enable(gl.DEPTH_TEST)
+  gl.DepthFunc(gl.LEQUAL)
 
   gl.GenVertexArrays(1, &_render_state.vao)
   gl.BindVertexArray(_render_state.vao)
@@ -96,6 +101,8 @@ init :: proc()
 
   gl.DeleteShader(vtx_shader)
   gl.DeleteShader(frg_shader)
+
+  //load_font()
 }
 
 clear_frame :: proc(color : HexColor)
@@ -142,6 +149,11 @@ set_viewport :: proc(width, height : i32)
 wireframe_mode :: proc(on : bool) 
 {
   gl.PolygonMode(gl.FRONT_AND_BACK, on ? gl.LINE : gl.FILL)
+  if on {
+    gl.Disable(gl.MULTISAMPLE)
+  }else {
+    gl.Enable(gl.MULTISAMPLE)
+  }
 }
 
 /*
@@ -247,7 +259,7 @@ push_rect :: proc (
 
     arc_len := radius * (math.PI * 0.5)
     segments := cast(i32)(arc_len / segment_length)
-    segments = math.clamp(segments, 1, 16)
+    segments = math.clamp(segments, 2, 16)
 
     step := (math.PI * 0.5) / f32(segments)
 
@@ -300,9 +312,9 @@ push_rect :: proc (
     p2 := convex_vertices[i2] - position
     
     push_triangle(
-      {p0.x + position.x, p0.y + position.y, 0.0}, 
-      {p1.x + position.x, p1.y + position.y, 0.0}, 
-      {p2.x + position.x, p2.y + position.y, 0.0},
+      {p0.x + position.x, p0.y + position.y, z_pos}, 
+      {p1.x + position.x, p1.y + position.y, z_pos}, 
+      {p2.x + position.x, p2.y + position.y, z_pos},
       color, color, color,
       p0 * uv_size / size + texcoords.xy,p1 * uv_size / size + texcoords.xy,p2 * uv_size / size + texcoords.xy,
       tex_id
@@ -317,8 +329,9 @@ upload_projection :: proc(camera : ^Camera)
   gl.UniformMatrix4fv(proj_loc, 1, false, &camera.projection[0][0])
 }
 
-hex_code_to_4f :: #force_inline proc(hex : HexColor) -> [4]f32
+linear :: #force_inline proc(hexcode : u32) -> [4]f32
 {
+  hex := HexColor {hexcode = hexcode}
   return [4]f32 {cast(f32) hex.r,cast(f32) hex.g,cast(f32) hex.b,cast(f32) hex.a} / 255.0
 }
 
@@ -389,3 +402,27 @@ uniform sampler2D u_texslots[8];
 void main() {
   FragColor = f_color;
 }`
+
+_FONT_ATLAS_WIDTH :: 256
+_FONT_ATLAS_HEIGHT :: 256
+_CHAR_COUNT :: 96
+Font :: struct {
+  char_data : [_CHAR_COUNT]stbt.bakedchar,
+  tex_id : u32,
+}
+_font : Font
+
+load_font :: proc() 
+{
+  using stbt
+
+  bitmap, _ := mem.alloc(_FONT_ATLAS_WIDTH * _FONT_ATLAS_HEIGHT)
+  font_height := 7 * 5 // for some reason this only bakes properly at 15 ? it's a 16px font dou...
+  path := "res/fonts/minecraft.ttf" // #user
+  ttf_data, err := os.read_entire_file(path)
+  assert(ttf_data != nil, "failed to read font")
+
+  ret := BakeFontBitmap(raw_data(ttf_data), 0, auto_cast font_height, auto_cast bitmap, _FONT_ATLAS_WIDTH, _FONT_ATLAS_HEIGHT, 32, _CHAR_COUNT, &_font.char_data[0])
+  assert(ret > 0, "not enough space in bitmap")
+  stbi.write_png("font.png", auto_cast _FONT_ATLAS_WIDTH, auto_cast _FONT_ATLAS_HEIGHT, 1, bitmap, auto_cast _FONT_ATLAS_WIDTH)
+}

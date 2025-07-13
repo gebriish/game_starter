@@ -41,7 +41,7 @@ run :: proc (
   glfw.WindowHint(glfw.RESIZABLE, hint_flags & WINDOW_HINT_RESIZABLE != 0)
   glfw.WindowHint(glfw.MAXIMIZED, hint_flags & WINDOW_HINT_MAXIMIZED != 0)
   glfw.WindowHint(glfw.DECORATED, hint_flags & WINDOW_HINT_DECORATED != 0)
-  glfw.WindowHint(glfw.SAMPLES, 4)
+  glfw.WindowHint(glfw.SAMPLES, 8)
 
   window := glfw.CreateWindow(
     window_x,
@@ -53,7 +53,8 @@ run :: proc (
   _app_state.glfw_handle = window
   _app_state.resize_callback = resize_proc
 
-  glfw.SetFramebufferSizeCallback(window, framebuffer_size_callback)
+  glfw.SetFramebufferSizeCallback(window, _framebuffer_size_callback)
+  glfw.SetScrollCallback(window, _input_scroll_callback)
 
   if window == nil {
     fmt.println("Failed to create GLFWwindow")
@@ -76,8 +77,8 @@ run :: proc (
     gl.ClearColor(0.0, 0.0, 0.0, 1.0)
     gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-    input_update_frame()
     frame_proc()
+    _input_update_frame()
 
     glfw.SwapBuffers(window)
     glfw.PollEvents()
@@ -86,7 +87,7 @@ run :: proc (
   shutdown_proc()
 }
 
-framebuffer_size_callback :: proc "c" (window : glfw.WindowHandle, width, height : i32)
+_framebuffer_size_callback :: proc "c" (window : glfw.WindowHandle, width, height : i32)
 {
   context = runtime.default_context()
   _app_state.resize_callback(width, height)
