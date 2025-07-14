@@ -26,9 +26,4 @@ UI_Context :: struct {
 }
 @(private) _ctx : UI_Context
 
-
-
-
-
-
 is_logic_pass :: #force_inline proc() { return _ctx.logic_pass }

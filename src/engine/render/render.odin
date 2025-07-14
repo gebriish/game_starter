@@ -12,6 +12,7 @@ import gl "vendor:OpenGL"
 import stbi "vendor:stb/image"
 import stbt "vendor:stb/truetype"
 
+@(private) _render_state : RenderState
 RenderState :: struct {
   vao : u32,
   vbo : u32,
@@ -31,7 +32,6 @@ RenderState :: struct {
   coord_space : CoordSpace,
   z_position  : f32,
 }
-@(private) _render_state : RenderState
 
 load_texture :: proc() -> u32 {
   handle: ^_TextureHandle
@@ -47,7 +47,7 @@ load_texture :: proc() -> u32 {
     _render_state.texture_count += 1
   }
 
-  handle.id = 0 // Replace with actual gl call
+  gl.GenTextures(1, &handle.id)
   handle.next = nil
 
   offset := cast(uintptr) handle - cast(uintptr) &_render_state.texture_handles[0]
@@ -210,6 +210,8 @@ push_rect :: proc(
   uv : [4]f32 = {0, 0, 1, 1},
   z_pos : f32 = 0.0,
   tex_id : u32 = 0,
+  offset : [2]f32 = 0,
+  rotation : f32 = 0,
 ){
   v_slots := (_MAX_VERTEX_COUNT - _render_state.vertex_count)
   i_slots := (_MAX_VERTEX_COUNT - _render_state.index_count)
@@ -219,11 +221,19 @@ push_rect :: proc(
     begin_frame()
   }
 
+  sin_val :f32= math.sin(rotation)
+  cos_val :f32= math.cos(rotation)
+
+  rotation_matrix := matrix[2,2]f32 {
+    cos_val, -sin_val,
+    sin_val, cos_val
+  }
+
   corners := [4][2]f32 {
-    pos,                // top left 
-    pos + {size.x, 0},  // top right
-    pos + size,         // bottom right
-    pos + {0, size.y}   // bottom left
+    rotation_matrix *  -offset,
+    rotation_matrix * ([2]f32{size.x, 0} - offset),
+    rotation_matrix * (size - offset),
+    rotation_matrix * ([2]f32{0, size.y} - offset),
   }
 
   tex_coords := [4][2]f32 {
@@ -231,7 +241,7 @@ push_rect :: proc(
   }
 
   for i in 0..<4 {
-    _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].position  = {corners[i].x, corners[i].y, _render_state.z_position}
+    _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].position  = {corners[i].x + pos.x, corners[i].y + pos.y, _render_state.z_position}
     _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].color     = color
     _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].tex_coord = tex_coords[i]
     _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].tex_id    = cast(f32) tex_id

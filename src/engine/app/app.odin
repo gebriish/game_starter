@@ -4,8 +4,6 @@ import "base:runtime"
 import "core:fmt"
 import "vendor:glfw"
 
-import gl "vendor:OpenGL"
-
 import "engine:render"
 
 WINDOW_HINT_NONE      :: 0
@@ -74,14 +72,12 @@ run :: proc (
     _app_state.delta_time = _app_state.frame_timestamp - last_frame_timestamp
     last_frame_timestamp = _app_state.frame_timestamp
 
-    gl.ClearColor(0.0, 0.0, 0.0, 1.0)
-    gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-    frame_proc()
+    glfw.PollEvents()
     _input_update_frame()
 
+    frame_proc()
+
     glfw.SwapBuffers(window)
-    glfw.PollEvents()
   }
 
   shutdown_proc()

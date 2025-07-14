@@ -27,18 +27,19 @@ COLOR_PALETTE := [5]render.HexColor {
 
 get_world_space :: proc () -> render.CoordSpace
 {
-  res := app.get_resolution()
+  res := app.get_resolution() * 0.5
 
   coord := render.CoordSpace {
     projection = linalg.matrix_ortho3d(
-      0, res.x, res.y, 0, MAX_Z_LAYERS, -1, false
+      -res.x, res.x, res.y, -res.y, MAX_Z_LAYERS, -1, false
     ),
     camera = linalg.matrix4_look_at(
       [3]f32 {0, 0, 0},
-      [3]f32 {0, 0, -1},
+      [3]f32 {0, 0,-1},
       [3]f32 {0, 1, 0},
     )
   }
+  coord.inverse = linalg.inverse(coord.projection * coord.camera)
 
   return coord
 }
@@ -57,10 +58,13 @@ main :: proc()
   )
 }
 
+world_space : render.CoordSpace
+
 core_app_init :: proc()
 {
   render.init()
-  render.set_coord_space(get_world_space())
+  world_space = get_world_space()
+  render.set_coord_space(world_space)
 }
 
 core_app_frame :: proc() 
@@ -69,19 +73,29 @@ core_app_frame :: proc()
   window_resolution :=app.get_resolution()
   cursor_pos := app.get_cursor_pos()
 
-  render.wireframe_mode(app.is_key_pressed(app.KEY_W))
+  crs_to_wrld := render.screen_to_world2d(world_space, cursor_pos, window_resolution)
 
+  render.wireframe_mode(app.is_key_pressed(app.KEY_W))
   render.clear_frame({hexcode = 0x000000_ff})
 
   render.begin_frame();
-  render.push_rect(0, window_resolution, render.linear(0x282828_ff))
+
+  {
+    t0 := time.now()
+    defer fmt.println(time.diff(t0, time.now()))
+    
+    render.push_rect(0, 200, 1.0, offset = 100, rotation=app.get_seconds())
+  }
+
   render.end_frame();
 }
 
 core_app_resize :: proc(width, height : i32) 
 {
   render.set_viewport(width, height)
-  render.set_coord_space(get_world_space())
+  
+  world_space = get_world_space()
+  render.set_coord_space(world_space)
 }
 
 core_app_shutdown :: proc() 
