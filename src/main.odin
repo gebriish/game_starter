@@ -1,12 +1,12 @@
 package main
 
+import "core:math/linalg"
 import "core:fmt"
 import "core:time"
 import "core:math"
 
 import "engine:app"
 import "engine:render"
-import "engine:ui"
 
 /*
 COLOR PALETTE 
@@ -25,6 +25,24 @@ COLOR_PALETTE := [5]render.HexColor {
   {hexcode = 0xf76753_ff},
 }
 
+get_world_space :: proc () -> render.CoordSpace
+{
+  res := app.get_resolution()
+
+  coord := render.CoordSpace {
+    projection = linalg.matrix_ortho3d(
+      0, res.x, res.y, 0, MAX_Z_LAYERS, -1, false
+    ),
+    camera = linalg.matrix4_look_at(
+      [3]f32 {0, 0, 0},
+      [3]f32 {0, 0, -1},
+      [3]f32 {0, 1, 0},
+    )
+  }
+
+  return coord
+}
+
 main :: proc()
 {
   app.run(
@@ -39,21 +57,10 @@ main :: proc()
   )
 }
 
-camera := render.Camera {
-  position = 0,
-  size = 1.0
-}
-
 core_app_init :: proc()
 {
   render.init()
-
-  camera.size = app.get_resolution()
-  render.update_view(&camera)
-  render.update_proj(&camera)
-
-  render.upload_projection(&camera)
-  render.upload_view(&camera)
+  render.set_coord_space(get_world_space())
 }
 
 core_app_frame :: proc() 
@@ -64,21 +71,17 @@ core_app_frame :: proc()
 
   render.wireframe_mode(app.is_key_pressed(app.KEY_W))
 
-  ui.begin_frame(window_resolution)
- 
-  ui.end_frame()
+  render.clear_frame({hexcode = 0x000000_ff})
 
-  
   render.begin_frame();
+  render.push_rect(0, window_resolution, render.linear(0x282828_ff))
   render.end_frame();
 }
 
-core_app_resize :: proc(width, height : i32)
+core_app_resize :: proc(width, height : i32) 
 {
-  camera.size = {cast(f32) width, cast(f32) height}
-  render.update_ui_proj(&camera)
-  render.upload_projection(&camera)
   render.set_viewport(width, height)
+  render.set_coord_space(get_world_space())
 }
 
 core_app_shutdown :: proc() 
