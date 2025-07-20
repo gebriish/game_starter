@@ -6,6 +6,8 @@ import "core:os"
 import "core:os/os2"
 import "core:time"
 
+import stbi "vendor:stb/image"
+
 when ODIN_OS == .Windows {
   EXE_NAME :: "game.exe"
 }
@@ -45,7 +47,7 @@ main :: proc()
   
   full_out_dir_path := fmt.tprintf("%v/%v", current_wd, out_dir)
   fmt.printf("Build path [%v]\n", full_out_dir_path)
-  
+
   make_directory_if_not_exist(full_out_dir_path)
 
   { // build command

@@ -1,0 +1,35 @@
+how the base render api should look like
+
+render.push_ -> for custom low level stuff
+render.draw_ -> abstracted high level draw commands
+
+render.begin_frame() and .end_frame() are low level
+
+// ever frame
+if render.push_coord_space(screen_space) {
+  render.draw_(..)
+  render.draw_(..)
+  render.draw_(..)
+  if render.push_z_layer(layer_idx) {
+    render.draw_(..)
+  }
+  render.draw_(..)
+}
+
+if render.push_coord_space(world_space) {
+
+  render.push_(..)
+  render.push_(..)
+  render.push_(..)
+  render.push_(..)
+  render.push_(..)
+  render.push_(..)
+
+}
+
+
+how to insert colors into text
+
+default color is passed through function call 
+"This is a text @(0xebdbc7ff, with different color) and this default back to normal"
+

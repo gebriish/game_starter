@@ -2,74 +2,102 @@ package app
 import "base:runtime"
 import "vendor:glfw"
 
-_key_states : [glfw.KEY_LAST + 1] u8 = 0
-_mouse_button_states : [glfw.MOUSE_BUTTON_LAST + 1] u8 = 0
-_mouse_scroll : [2]f32
-
-get_cursor_pos :: proc() -> [2]f32 
-{
-  x, y := glfw.GetCursorPos(_app_state.glfw_handle)
-  return {cast(f32) x, cast(f32) y}
+@(private) _input_state : InputState
+InputState :: struct {
+  keys : #sparse[KeyCode] u8,
+  mouse_buttons : [MouseButton] u8,
+  mouse_scroll : [2]f32,
+  mouse_position : [2]f32,
+  mouse_pos_last : [2]f32,
 }
 
-is_key_pressed :: proc(keycode : i32) -> bool
+get_mouse_pos :: proc() -> [2]f32 
 {
-  return _key_states[keycode] & 1 != 0
+  return _input_state.mouse_position
 }
 
-is_key_up :: proc(keycode : i32) -> bool
+get_mouse_delta :: proc() -> [2]f32 
 {
-  return (_key_states[keycode] & 1 == 0) && (_key_states[keycode] >> 1 & 1 != 0)
+  return _input_state.mouse_position - _input_state.mouse_pos_last
 }
 
-is_key_down :: proc(keycode : i32) -> bool
+is_key_pressed :: proc(keycode : KeyCode) -> bool
 {
-  return (_key_states[keycode] & 1 != 0) && (_key_states[keycode] >> 1 & 1 == 0)
+  using _input_state
+  return keys[keycode] & 1 != 0
 }
 
-is_mouse_down :: proc(button : i32) -> bool 
+on_key_up :: proc(keycode : KeyCode) -> bool
 {
-  return  (_mouse_button_states[button] & 1 != 0) && (_mouse_button_states[button] >> 1 & 1 == 0)
+  using _input_state
+  return (keys[keycode] & 1 == 0) && (keys[keycode] >> 1 & 1 != 0)
 }
 
-is_mouse_pressed :: proc(button : i32) -> bool 
+on_key_down :: proc(keycode : KeyCode) -> bool
 {
-  return _mouse_button_states[button] & 1 != 0
+  using _input_state
+  return (keys[keycode] & 1 != 0) && (keys[keycode] >> 1 & 1 == 0)
 }
 
-is_mouse_up :: proc(button : i32) -> bool 
+on_mouse_down :: proc(button : MouseButton) -> bool 
 {
-  return  (_mouse_button_states[button] & 1 == 0) && (_mouse_button_states[button] >> 1 & 1 != 0)
+  using _input_state
+  return  (mouse_buttons[button] & 1 != 0) && (mouse_buttons[button] >> 1 & 1 == 0)
+}
+
+is_mouse_pressed :: proc(button : MouseButton) -> bool 
+{
+  using _input_state
+  return mouse_buttons[button] & 1 != 0
+}
+
+on_mouse_up :: proc(button : MouseButton) -> bool 
+{
+  using _input_state
+  return  (mouse_buttons[button] & 1 == 0) && (mouse_buttons[button] >> 1 & 1 != 0)
 }
 
 get_mouse_scroll :: proc() -> [2]f32 
 {
-  return _mouse_scroll
+  using _input_state
+  return mouse_scroll
 }
 
 _input_update_frame :: proc() 
 {
-  for i in 0..<len(_key_states) {
-    state := &_key_states[i]
+  using _input_state
+  
+  any_state := &keys[.ANY]
+  any_state^ = any_state^ << 1
+
+  for k in KeyCode {
+    if k == .ANY { break }
+    
+    state := &keys[k]
     state^ = state^ << 1
-    if glfw.GetKey(_app_state.glfw_handle, cast(i32) i) == glfw.PRESS {
+    if glfw.GetKey(_app_state.glfw_handle, cast(i32) k) == glfw.PRESS {
       state^ |= 1
+      any_state^ |= 1
     }
   }
 
-  for i in 0..<len(_mouse_button_states) {
-    state := &_mouse_button_states[i]
+  for b in MouseButton {
+    state := &mouse_buttons[b]
     state^ = state^ << 1
-    if glfw.GetMouseButton(_app_state.glfw_handle, cast(i32) i) == glfw.PRESS {
+    if glfw.GetMouseButton(_app_state.glfw_handle, cast(i32) b) == glfw.PRESS {
       state^ |= 1
     }
   }
   
-  _mouse_scroll = 0
+  mouse_scroll = 0
+  x, y := glfw.GetCursorPos(_app_state.glfw_handle)
+  mouse_pos_last = mouse_position
+  mouse_position = {f32(x), f32(y)}
 }
 
 _input_scroll_callback :: proc "c" (window : glfw.WindowHandle, x, y : f64)
 {
+  using _input_state
   context = runtime.default_context()
-  _mouse_scroll = {f32(x), f32(y)}
+  mouse_scroll = {f32(x), f32(y)}
 }

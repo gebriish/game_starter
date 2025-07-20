@@ -11,12 +11,11 @@ WINDOW_HINT_RESIZABLE :: 1 << 0
 WINDOW_HINT_MAXIMIZED :: 1 << 1
 WINDOW_HINT_DECORATED :: 1 << 2
 
-@(private) _app_state : struct {
+@(private) _app_state : AppState
+AppState :: struct {
   glfw_handle : glfw.WindowHandle,
   frame_timestamp : f32,
   delta_time : f32,
-
-  resize_callback : proc (x, y : i32),
 }
 
 // This is the entire Application runtime
@@ -28,8 +27,10 @@ run :: proc (
   init_proc : proc(),
   frame_proc : proc(),
   shutdown_proc : proc(),
-  resize_proc :  proc (x, y : i32),
 ) {
+	when ODIN_OS == .Windows {
+		windows.FreeConsole()
+	}
 
   if !glfw.Init() {
     fmt.println("Failed to Initialize GLFW")
@@ -49,9 +50,13 @@ run :: proc (
   )
 
   _app_state.glfw_handle = window
-  _app_state.resize_callback = resize_proc
 
-  glfw.SetFramebufferSizeCallback(window, _framebuffer_size_callback)
+  glfw.SetFramebufferSizeCallback(window, proc "c" (window : glfw.WindowHandle, width, height : i32)
+    {
+      context = runtime.default_context()
+      render.set_viewport(width, height)
+    }
+  )
   glfw.SetScrollCallback(window, _input_scroll_callback)
 
   if window == nil {
@@ -65,28 +70,21 @@ run :: proc (
   render.init()
 
   init_proc()
-  
+
   last_frame_timestamp : f32 = cast(f32) glfw.GetTime()
   for !glfw.WindowShouldClose(window) {
     _app_state.frame_timestamp = cast(f32) glfw.GetTime()
     _app_state.delta_time = _app_state.frame_timestamp - last_frame_timestamp
     last_frame_timestamp = _app_state.frame_timestamp
 
-    glfw.PollEvents()
-    _input_update_frame()
-
     frame_proc()
 
+    glfw.PollEvents()
+    _input_update_frame()
     glfw.SwapBuffers(window)
   }
 
   shutdown_proc()
-}
-
-_framebuffer_size_callback :: proc "c" (window : glfw.WindowHandle, width, height : i32)
-{
-  context = runtime.default_context()
-  _app_state.resize_callback(width, height)
 }
 
 get_resolution :: proc() -> [2]f32 {
