@@ -1,4 +1,3 @@
-#+feature dynamic-literals
 package build
 
 import "core:fmt"
@@ -28,16 +27,7 @@ main :: proc()
     fmt.println("Build done in ", time.diff(begin_time, time.now()))
   }
 
-  build_target : BuildTarget
-  
-  #partial switch ODIN_OS {
-  case .Windows :
-    build_target = .windows
-  case .Linux :
-    build_target = .linux
-  case .Darwin:
-    build_target = .macos
-  }
+  build_target : BuildTarget : .windows when ODIN_OS == .Windows else .linux when ODIN_OS == .Linux else .macos   
 
   fmt.printf("Build target [%v]\n", build_target)
 
@@ -51,14 +41,15 @@ main :: proc()
   make_directory_if_not_exist(full_out_dir_path)
 
   { // build command
-    c : [dynamic]string = {
+    c := [?]string {
       "odin",
       "build",
       "src",
       "-debug",
       "-collection:engine=src/engine",
       "-collection:user=src",
-      fmt.tprintf("-out:%v/%v", out_dir, EXE_NAME)
+      fmt.tprintf("-out:%v/%v", out_dir, EXE_NAME),
+      // on release builds "-subsystem:windows" when build_target == .windows else ""
     }
 
     run_cmd(..c[:])

@@ -2,6 +2,7 @@ package render
 
 import "core:math/linalg"
 import "core:math"
+import "core:strings"
 import "core:fmt"
 import "core:mem"
 import "core:os"
@@ -11,6 +12,8 @@ import gl "vendor:OpenGL"
 
 import stbi "vendor:stb/image"
 import stbtt "vendor:stb/truetype"
+
+import "engine:utils"
 
 _GL_VERSION_MAJOR :: 4
 _GL_VERSION_MINOR :: 5
@@ -126,7 +129,12 @@ Texture :: struct {
 load_font :: proc()
 {
   width, height, channels : i32
-  bitmap := stbi.load(_FONT_PATH, &width, &height, &channels, 0)
+  
+  path_cstring := strings.clone_to_cstring(utils.get_path_temp(_FONT_PATH))
+  defer delete(path_cstring)
+  fmt.println(path_cstring)
+
+  bitmap := stbi.load(path_cstring, &width, &height, &channels, 0)
 
   upload_texture({
     data = bitmap,
@@ -352,8 +360,7 @@ push_triangle :: #force_inline proc(
   u1, u2, u3 : [2]f32, // uv
   tex_id : u32 = 0, // texture index
   cir1: [2]u8 = CIRCLE_COORD_CENTER, cir2: [2]u8 = CIRCLE_COORD_CENTER, cir3 : [2]u8 = CIRCLE_COORD_CENTER, // circle coordinates
-)
-{
+) {
   v_slots := (_MAX_VERTEX_COUNT - _render_state.vertex_count)
   i_slots := (_MAX_VERTEX_COUNT - _render_state.index_count)
 
@@ -603,4 +610,3 @@ upload_view :: proc(coord : ^CoordSpace)
   proj_loc := gl.GetUniformLocation(_render_state.program_id, "u_view")
   gl.UniformMatrix4fv(proj_loc, 1, false, &coord.camera[0][0])
 }
-

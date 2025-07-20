@@ -3,8 +3,8 @@ package app
 import "base:runtime"
 import "core:fmt"
 import "vendor:glfw"
-
 import "engine:render"
+import "engine:utils"
 
 WINDOW_HINT_NONE      :: 0
 WINDOW_HINT_RESIZABLE :: 1 << 0
@@ -28,14 +28,12 @@ run :: proc (
   frame_proc : proc(),
   shutdown_proc : proc(),
 ) {
-	when ODIN_OS == .Windows {
-		windows.FreeConsole()
-	}
-
   if !glfw.Init() {
     fmt.println("Failed to Initialize GLFW")
     return
   }
+
+  utils.load_exec_dir()
 
   glfw.WindowHint(glfw.RESIZABLE, hint_flags & WINDOW_HINT_RESIZABLE != 0)
   glfw.WindowHint(glfw.MAXIMIZED, hint_flags & WINDOW_HINT_MAXIMIZED != 0)
