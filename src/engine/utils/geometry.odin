@@ -28,7 +28,7 @@ YAlignment :: enum {
 
 pivot_scale :: proc(pivot : Pivot) -> [2]f32
 {
-  @(static) pivot_scales := [Pivot][2]f32 {
+  @(static, rodata) pivot_scales := [Pivot][2]f32 {
     .TopLeft = {0, 0},
     .TopCenter = {0.5, 0},
     .TopRight = {1, 0},

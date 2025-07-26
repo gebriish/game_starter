@@ -2,7 +2,7 @@ package app
 import "base:runtime"
 import "vendor:glfw"
 
-@(private) _input_state : InputState
+_input_state : InputState
 InputState :: struct {
   keys : #sparse[KeyCode] u8,
   mouse_buttons : [MouseButton] u8,

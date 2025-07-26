@@ -2,9 +2,7 @@ package render
 
 import "core:math/linalg"
 import "core:math"
-import "core:strings"
 import "core:fmt"
-import "core:mem"
 import "core:os"
 
 import "vendor:glfw"
@@ -12,20 +10,6 @@ import gl "vendor:OpenGL"
 
 import stbi "vendor:stb/image"
 import stbtt "vendor:stb/truetype"
-
-import "engine:utils"
-
-_GL_VERSION_MAJOR :: 4
-_GL_VERSION_MINOR :: 5
-
-_MAX_TEXTURES :: 8
-_MAX_TRIANGLES :: 4096
-_MAX_VERTEX_COUNT ::  _MAX_TRIANGLES * 3
-
-_FONT_PATH :: "res/font_bitmap.png"
-
-WHITE_TEXTURE :: 0
-FONT_TEXTURE :: 1
 
 HexColor :: struct #raw_union { // 0xRRGGBBAA
   hexcode : u32be,
@@ -37,15 +21,13 @@ HexColor :: struct #raw_union { // 0xRRGGBBAA
   },
 }
 
-CIRCLE_COORD_CENTER :: 128
-
 _RenderVertex :: struct {
   position : [3]f32,
   color    : [4]f32,
   tex_coord: [2]f32, 
   tex_id   : f32,
   circle_coord : [2]u8,
-  padding : [2]u8, // maybe another coord for beziers
+  bezier_coord : [2]u8,
 }
 
 _TextureHandle :: struct {
@@ -53,65 +35,22 @@ _TextureHandle :: struct {
   id   : u32,
 }
 
-@(rodata) _VERTEX_SHADER_SOURCE := cast(cstring) `#version 450 core
-layout (location=0) in vec3 aPos;
-layout (location=1) in vec4 aColor;
-layout (location=2) in vec2 aTexCoords;
-layout (location=3) in float aTexId;
-layout (location=4) in vec2 aCircCoords;
-uniform mat4 u_proj;
-uniform mat4 u_view;
-out vec4 f_color;
-out float f_texid;
-out vec2 f_texcoords;
-out vec2 f_circcoords;
-void main() {
-  f_color = aColor;
-  f_texcoords = aTexCoords;
-  f_texid = aTexId;
-  f_circcoords = aCircCoords;
-  gl_Position = u_proj * u_view * vec4(aPos, 1.0);
-}`
-
-@(rodata)_FRAGMENT_SHADER_SOURCE := cast(cstring) `#version 450 core
-in vec4 f_color;
-in vec2 f_texcoords;
-in float f_texid;
-in vec2 f_circcoords;
-out vec4 FragColor;
-uniform sampler2D u_texslots[8];
-uniform int u_wireframe;
-void main() {
-  if (u_wireframe != 0) {
-    FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-    return;
-  }
-
-  int texid = int(f_texid);
-  vec4 tex_color = texture(u_texslots[texid], f_texcoords);
-  vec4 final_color = f_color * tex_color;
-  vec2 centered = f_circcoords * 2.0 - 1.0;
-  float dist = (dot(centered, centered) - 1.0) * (gl_FrontFacing ? 1.0 : -1.0);
-
-  if (final_color.a <= 0.01 || dist > 0.0)
-      discard;
-  FragColor = final_color;
-}`
-
-@(private) _render_state : RenderState
+_render_state : RenderState
 RenderState :: struct {
   vao : u32,
   vbo : u32,
   ebo : u32,
 
-  program_id : u32,
+  main_shader : u32,
+  main_shader_uniforms : gl.Uniforms,
 
-  vertex_array : [_MAX_VERTEX_COUNT] _RenderVertex,
+
+  vertex_array : [MAX_VERTEX_COUNT] _RenderVertex,
   vertex_count : u32,
-  index_array  : [_MAX_VERTEX_COUNT] u32,
+  index_array  : [MAX_VERTEX_COUNT] u32,
   index_count : u32,
 
-  texture_handles : [_MAX_TEXTURES]_TextureHandle,
+  texture_handles : [MAX_TEXTURES]_TextureHandle,
   texture_count : u32,
   texture_freelist : ^_TextureHandle,
 
@@ -129,12 +68,7 @@ Texture :: struct {
 load_font :: proc()
 {
   width, height, channels : i32
-  
-  path_cstring := strings.clone_to_cstring(utils.get_path_temp(_FONT_PATH))
-  defer delete(path_cstring)
-  fmt.println(path_cstring)
-
-  bitmap := stbi.load(path_cstring, &width, &height, &channels, 0)
+  bitmap := stbi.load(FONT_PATH, &width, &height, &channels, 0)
 
   upload_texture({
     data = bitmap,
@@ -158,7 +92,7 @@ upload_texture :: proc(texture: Texture) -> u32
     handle = _render_state.texture_freelist
     _render_state.texture_freelist = handle.next
   } else {
-    if _render_state.texture_count >= _MAX_TEXTURES {
+    if _render_state.texture_count >= MAX_TEXTURES {
       fmt.eprintln("render::upload_texture: Maximum texture limit reached")
       return 0
     }
@@ -226,71 +160,75 @@ unload_texture :: proc(id: u32) {
   _render_state.texture_freelist = texture
 }
 
+
 init :: proc()
 {
   { // OpenglInit
-    using gl
-    load_up_to(_GL_VERSION_MAJOR, _GL_VERSION_MINOR, glfw.gl_set_proc_address)
+    gl.load_up_to(GL_VERSION_MAJOR, GL_VERSION_MINOR, glfw.gl_set_proc_address)
 
-    Enable(gl.MULTISAMPLE)
-    Enable(gl.DEPTH_TEST)
-    Enable(gl.BLEND)
+    gl.Enable(gl.MULTISAMPLE)
+    gl.Enable(gl.DEPTH_TEST)
+    gl.Enable(gl.BLEND)
 
-    BlendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)
-    DepthFunc(gl.LEQUAL)
+    gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    gl.DepthFunc(gl.LEQUAL)
 
-    GenVertexArrays(1, &_render_state.vao)
-    BindVertexArray(_render_state.vao)
+    gl.GenVertexArrays(1, &_render_state.vao)
+    gl.BindVertexArray(_render_state.vao)
 
-    GenBuffers(1, &_render_state.vbo)
-    BindBuffer(gl.ARRAY_BUFFER, _render_state.vbo)
-    BufferData(gl.ARRAY_BUFFER, _MAX_VERTEX_COUNT * size_of(_RenderVertex), nil, gl.DYNAMIC_DRAW)
+    gl.GenBuffers(1, &_render_state.vbo)
+    gl.BindBuffer(gl.ARRAY_BUFFER, _render_state.vbo)
+    gl.BufferData(gl.ARRAY_BUFFER, MAX_VERTEX_COUNT * size_of(_RenderVertex), nil, gl.DYNAMIC_DRAW)
 
-    VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, size_of(_RenderVertex), cast(uintptr) 0);
-    EnableVertexAttribArray(0);
+    gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, size_of(_RenderVertex), cast(uintptr) 0);
+    gl.EnableVertexAttribArray(0);
 
-    VertexAttribPointer(1, 4, gl.FLOAT, gl.FALSE, size_of(_RenderVertex), cast(uintptr) (3 * size_of(f32)));
-    EnableVertexAttribArray(1);
+    gl.VertexAttribPointer(1, 4, gl.FLOAT, gl.FALSE, size_of(_RenderVertex), cast(uintptr) (3 * size_of(f32)));
+    gl.EnableVertexAttribArray(1);
 
-    VertexAttribPointer(2, 2, gl.FLOAT, gl.FALSE, size_of(_RenderVertex), cast(uintptr) (7 * size_of(f32)));
-    EnableVertexAttribArray(2);
+    gl.VertexAttribPointer(2, 2, gl.FLOAT, gl.FALSE, size_of(_RenderVertex), cast(uintptr) (7 * size_of(f32)));
+    gl.EnableVertexAttribArray(2);
 
-    VertexAttribPointer(3, 1, gl.FLOAT, gl.FALSE, size_of(_RenderVertex), cast(uintptr) (9 * size_of(f32)));
-    EnableVertexAttribArray(3);
+    gl.VertexAttribPointer(3, 1, gl.FLOAT, gl.FALSE, size_of(_RenderVertex), cast(uintptr) (9 * size_of(f32)));
+    gl.EnableVertexAttribArray(3);
 
-    VertexAttribPointer(4, 2, gl.UNSIGNED_BYTE, gl.TRUE, size_of(_RenderVertex), cast(uintptr) (10 * size_of(f32)));
-    EnableVertexAttribArray(4);
+    gl.VertexAttribPointer(4, 4, gl.UNSIGNED_BYTE, gl.TRUE, size_of(_RenderVertex), cast(uintptr) (10 * size_of(f32)));
+    gl.EnableVertexAttribArray(4);
 
-    GenBuffers(1, &_render_state.ebo)
-    BindBuffer(gl.ELEMENT_ARRAY_BUFFER, _render_state.ebo)
-    BufferData(gl.ELEMENT_ARRAY_BUFFER, _MAX_VERTEX_COUNT * size_of(u32), nil, gl.DYNAMIC_DRAW)
+    gl.GenBuffers(1, &_render_state.ebo)
+    gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, _render_state.ebo)
+    gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, MAX_VERTEX_COUNT * size_of(u32), nil, gl.DYNAMIC_DRAW)
 
-    _render_state.program_id = CreateProgram()
+    _render_state.main_shader = gl.CreateProgram()
 
     vtx_shader := gl.CreateShader(gl.VERTEX_SHADER)
-    ShaderSource(vtx_shader, 1, &_VERTEX_SHADER_SOURCE, nil)
-    CompileShader(vtx_shader)
+    gl.ShaderSource(vtx_shader, 1, &_VERTEX_SHADER_SOURCE, nil)
+    gl.CompileShader(vtx_shader)
 
     frg_shader := gl.CreateShader(gl.FRAGMENT_SHADER)
-    ShaderSource(frg_shader, 1, &_FRAGMENT_SHADER_SOURCE, nil)
-    CompileShader(frg_shader)
+    gl.ShaderSource(frg_shader, 1, &_FRAGMENT_SHADER_SOURCE, nil)
+    gl.CompileShader(frg_shader)
 
-    AttachShader(_render_state.program_id, vtx_shader)
-    AttachShader(_render_state.program_id, frg_shader)
-    LinkProgram(_render_state.program_id)
+    gl.AttachShader(_render_state.main_shader, vtx_shader)
+    gl.AttachShader(_render_state.main_shader, frg_shader)
+    gl.LinkProgram(_render_state.main_shader)
 
-    UseProgram(_render_state.program_id)
+    gl.UseProgram(_render_state.main_shader)
     defer {
-      DeleteShader(vtx_shader)
-      DeleteShader(frg_shader)
-      UseProgram(0)
+      gl.DeleteShader(vtx_shader)
+      gl.DeleteShader(frg_shader)
+      gl.UseProgram(0)
     }
 
-    samplers := [_MAX_TEXTURES]i32 {}
-    for i in 0..<_MAX_TEXTURES {
+    _render_state.main_shader_uniforms = gl.get_uniforms_from_program(_render_state.main_shader)
+
+    samplers := [MAX_TEXTURES]i32 {}
+    for i in 0..<MAX_TEXTURES {
       samplers[i] = cast(i32) i
     }
-    Uniform1iv(GetUniformLocation(_render_state.program_id, "u_texslots"), _MAX_TEXTURES, &samplers[0])
+
+
+    gl.Uniform1iv(gl.GetUniformLocation(_render_state.main_shader, "u_texslots"), MAX_TEXTURES, &samplers[0])
   }
 
   { // Render State Init
@@ -308,6 +246,7 @@ init :: proc()
     })
     load_font()
   }
+
 }
 
 clear_frame :: proc(color : HexColor)
@@ -340,7 +279,7 @@ _end_frame :: proc()
   gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, _render_state.ebo)
   gl.BufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, cast(int) _render_state.index_count * size_of(u32), &_render_state.index_array[0])
 
-  gl.UseProgram(_render_state.program_id)
+  gl.UseProgram(_render_state.main_shader)
 
   gl.BindVertexArray(_render_state.vao)
   gl.DrawElements(gl.TRIANGLES, cast(i32) _render_state.index_count, gl.UNSIGNED_INT, nil)
@@ -350,19 +289,21 @@ deinit :: proc()
 {
   gl.DeleteBuffers(1, &_render_state.vbo)
   gl.DeleteVertexArrays(1, &_render_state.vao)
-  gl.DeleteProgram(_render_state.program_id)
+  gl.DeleteProgram(_render_state.main_shader)
   _render_state = {}
 }
 
-push_triangle :: #force_inline proc(
+push_triangle :: proc(
   v1, v2, v3 : [2]f32, // position
   c1, c2, c3 : [4]f32, // color 
   u1, u2, u3 : [2]f32, // uv
   tex_id : u32 = 0, // texture index
-  cir1: [2]u8 = CIRCLE_COORD_CENTER, cir2: [2]u8 = CIRCLE_COORD_CENTER, cir3 : [2]u8 = CIRCLE_COORD_CENTER, // circle coordinates
-) {
-  v_slots := (_MAX_VERTEX_COUNT - _render_state.vertex_count)
-  i_slots := (_MAX_VERTEX_COUNT - _render_state.index_count)
+  cir1: [2]u8 = CIRCLE_COORD_INSIDE, cir2: [2]u8 = CIRCLE_COORD_INSIDE, cir3 : [2]u8 = CIRCLE_COORD_INSIDE, // circle coordinates
+  bez1: [2]u8 = BEZIER_COORD_INSIDE, bez2: [2]u8 = BEZIER_COORD_INSIDE, bez3 : [2]u8 = BEZIER_COORD_INSIDE, // bezier curve coordinates
+)
+{
+  v_slots := (MAX_VERTEX_COUNT - _render_state.vertex_count)
+  i_slots := (MAX_VERTEX_COUNT - _render_state.index_count)
 
   if v_slots < 3 || i_slots < 3 {
     _end_and_begin_frame()
@@ -388,6 +329,10 @@ push_triangle :: #force_inline proc(
   _render_state.vertex_array[_render_state.vertex_count + 1].circle_coord = cir2
   _render_state.vertex_array[_render_state.vertex_count + 2].circle_coord = cir3
 
+  _render_state.vertex_array[_render_state.vertex_count + 0].bezier_coord = bez1
+  _render_state.vertex_array[_render_state.vertex_count + 1].bezier_coord = bez2
+  _render_state.vertex_array[_render_state.vertex_count + 2].bezier_coord = bez3
+
   _render_state.index_array[_render_state.index_count + 0] = _render_state.vertex_count + 0
   _render_state.index_array[_render_state.index_count + 1] = _render_state.vertex_count + 1
   _render_state.index_array[_render_state.index_count + 2] = _render_state.vertex_count + 2
@@ -406,33 +351,20 @@ push_rect_rounded :: proc(
 ) {
   if size.x <= 0.0 || size.y <= 0.0 { return }
   
-  /*
-    radii correction
-  */
   adjusted_radii := radii
 
-  top_sum := radii[0] + radii[1]
-  bottom_sum := radii[3] + radii[2]
-  max_horizontal := max(top_sum, bottom_sum)
-  if max_horizontal > size.x {
-    scale := size.x / max_horizontal
-    adjusted_radii[0] *= scale
-    adjusted_radii[1] *= scale
-    adjusted_radii[2] *= scale
-    adjusted_radii[3] *= scale
+  adjust_side :: #force_inline proc(s1, s2 : ^f32, max : f32) {
+    side_sum := s1^ + s2^
+    if side_sum > max {
+      s1^ *= max / side_sum
+      s2^ *= max / side_sum
+    }
   }
-
-  left_sum := radii[0] + radii[3]
-  right_sum := radii[1] + radii[2]
-  max_vertical := max(left_sum, right_sum)
-  if max_vertical > size.y {
-    scale := size.y / max_vertical
-    adjusted_radii[0] *= scale
-    adjusted_radii[1] *= scale
-    adjusted_radii[2] *= scale
-    adjusted_radii[3] *= scale
-  }
-
+  
+  adjust_side(&adjusted_radii[0], &adjusted_radii[1], size.x)
+  adjust_side(&adjusted_radii[2], &adjusted_radii[3], size.x)
+  adjust_side(&adjusted_radii[2], &adjusted_radii[1], size.y)
+  adjust_side(&adjusted_radii[0], &adjusted_radii[3], size.y)
 
   chopped_corners := [8][2]f32 {}
   num_corners := 0
@@ -469,8 +401,8 @@ push_rect_rounded :: proc(
     }
   }
 
-  v_slots := (_MAX_VERTEX_COUNT - _render_state.vertex_count)
-  i_slots := (_MAX_VERTEX_COUNT - _render_state.index_count)
+  v_slots := (MAX_VERTEX_COUNT - _render_state.vertex_count)
+  i_slots := (MAX_VERTEX_COUNT - _render_state.index_count)
 
   if v_slots < num_vertices || i_slots < (num_vertices - 2) * 3 {
     _end_and_begin_frame()
@@ -488,7 +420,8 @@ push_rect_rounded :: proc(
     v.color = color
     v.tex_coord = local_uv * (uv.zw - uv.xy) + uv.xy
     v.tex_id = f32(tex_id)
-    v.circle_coord = CIRCLE_COORD_CENTER
+    v.circle_coord = CIRCLE_COORD_INSIDE
+    v.bezier_coord = BEZIER_COORD_INSIDE
   }
 
   for i in 1..<num_vertices - 1 {
@@ -515,7 +448,7 @@ push_rect_rounded :: proc(
       color, color, color,
       (p1 - pos) / size * (uv.zw - uv.xy) + uv.xy, (p2 - pos) / size * (uv.zw - uv.xy) + uv.xy, (p3 - pos) / size * (uv.zw - uv.xy) + uv.xy,
       tex_id,
-      0, {CIRCLE_COORD_CENTER, 0},{0, CIRCLE_COORD_CENTER}
+      0, {CIRCLE_COORD_INSIDE, 0},{0, CIRCLE_COORD_INSIDE}
     )
   }
 }
@@ -528,8 +461,8 @@ push_rect :: proc(
   offset : [2]f32 = 0,
   rotation : f32 = 0,
 ) {
-  v_slots := (_MAX_VERTEX_COUNT - _render_state.vertex_count)
-  i_slots := (_MAX_VERTEX_COUNT - _render_state.index_count)
+  v_slots := (MAX_VERTEX_COUNT - _render_state.vertex_count)
+  i_slots := (MAX_VERTEX_COUNT - _render_state.index_count)
 
   if v_slots < 4 || i_slots < 6 {
     _end_and_begin_frame()
@@ -559,7 +492,8 @@ push_rect :: proc(
     _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].color     = color
     _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].tex_coord = tex_coords[i]
     _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].tex_id    = cast(f32) tex_id
-    _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].circle_coord = CIRCLE_COORD_CENTER
+    _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].circle_coord = CIRCLE_COORD_INSIDE
+    _render_state.vertex_array[_render_state.vertex_count + cast(u32) i].bezier_coord = BEZIER_COORD_INSIDE
   }
 
   _render_state.index_array[_render_state.index_count + 0] = _render_state.vertex_count + 0
@@ -571,6 +505,12 @@ push_rect :: proc(
 
   _render_state.vertex_count += 4
   _render_state.index_count += 6
+}
+
+push_glyph :: proc(
+
+) {
+
 }
 
 set_viewport :: proc(width, height : i32)
@@ -586,8 +526,9 @@ wireframe_mode :: proc(on : bool)
   }else {
     gl.Enable(gl.MULTISAMPLE)
   }
-  gl.UseProgram(_render_state.program_id)
-  gl.Uniform1i(gl.GetUniformLocation(_render_state.program_id, "u_wireframe"), on ? 1 : 0)
+
+  gl.UseProgram(_render_state.main_shader);
+  gl.Uniform1i(_render_state.main_shader_uniforms["u_wireframe"].location, on ? 1 : 0)
 }
 
 
@@ -599,14 +540,15 @@ linear :: #force_inline proc(hexcode : u32be) -> [4]f32
 
 upload_projection :: proc(coord : ^CoordSpace)
 {
-  gl.UseProgram(_render_state.program_id)
-  proj_loc := gl.GetUniformLocation(_render_state.program_id, "u_proj")
+  gl.UseProgram(_render_state.main_shader)
+  proj_loc := gl.GetUniformLocation(_render_state.main_shader, "u_proj")
   gl.UniformMatrix4fv(proj_loc, 1, false, &coord.projection[0][0])
 }
 
 upload_view :: proc(coord : ^CoordSpace)
 {
-  gl.UseProgram(_render_state.program_id)
-  proj_loc := gl.GetUniformLocation(_render_state.program_id, "u_view")
+  gl.UseProgram(_render_state.main_shader)
+  proj_loc := gl.GetUniformLocation(_render_state.main_shader, "u_view")
   gl.UniformMatrix4fv(proj_loc, 1, false, &coord.camera[0][0])
 }
+

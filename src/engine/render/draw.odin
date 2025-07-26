@@ -18,7 +18,7 @@ set_coord_space :: #force_inline proc(coord : CoordSpace)
 }
 
 @(deferred_none=_end_frame)
-begin_pass :: proc(coord : CoordSpace) -> bool
+push_pass :: proc(coord : CoordSpace) -> bool
 {
   set_coord_space(coord)
   _begin_frame()
@@ -59,29 +59,14 @@ coord_space :: proc() -> CoordSpace {
   return _render_state.coord_space
 }
 
-_FONT_ATLAS_DIM :: [2]u32 {16, 8} // Number of glyphs in (columns, rows)
-_FONT_TEXTURE_SIZE :: [2]u32 {96, 96} // Actual texture pixel dimensions
-
-_GLYPH_SIZE :: [2]f32 {
-  f32(_FONT_TEXTURE_SIZE.x) / f32(_FONT_ATLAS_DIM.x),
-  f32(_FONT_TEXTURE_SIZE.y) / f32(_FONT_ATLAS_DIM.y),
-}
-_UV_PER_GLYPH :: [2]f32 {
-  1.0 / f32(_FONT_ATLAS_DIM.x),
-  1.0 / f32(_FONT_ATLAS_DIM.y),
-}
-_GLYPH_TRIM :: [4]f32 {1,1,0,1}
-_PX_PER_UV :: [2]f32{
-  1.0 / f32(_FONT_TEXTURE_SIZE.x),
-  1.0 / f32(_FONT_TEXTURE_SIZE.y),
-}
-
 draw_text :: proc(
   text       : string,
   pos        : [2]f32,
   color      : [4]f32 = {1,1,1,1},
   scale      : f32 = 2.0,
   pivot      : utils.Pivot = .TopLeft,
+  drop_shadow := false,
+  shadow_color : [4]f32 = 1.0
 ) -> [4]f32 {
   total_size : [2]f32 = {0,0}
   line_width : f32    = 0
@@ -90,17 +75,17 @@ draw_text :: proc(
     if char == '\n' {
       total_size.x = math.max(total_size.x, line_width)
       line_width = 0
-      total_size.y += _GLYPH_SIZE.y
+      total_size.y += GLYPH_SIZE.y
       continue
     }
     if char == '\t' {
-      line_width += _GLYPH_SIZE.x * 4
+      line_width += GLYPH_SIZE.x * 4
       continue
     }
-    line_width += _GLYPH_SIZE.x
+    line_width += GLYPH_SIZE.x
     if i == len(text)-1 {
       total_size.x = math.max(total_size.x, line_width)
-      total_size.y += _GLYPH_SIZE.y
+      total_size.y += GLYPH_SIZE.y
     }
   }
 
@@ -113,15 +98,15 @@ draw_text :: proc(
   for char in text {
     if char == '\n' {
       x = 0
-      y += _GLYPH_SIZE.y
+      y += GLYPH_SIZE.y
       continue
     }
     if char == '\t' {
-      x += _GLYPH_SIZE.x * 4
+      x += GLYPH_SIZE.x * 4
       continue
     }
     if char == ' ' {
-      x += _GLYPH_SIZE.x
+      x += GLYPH_SIZE.x
       continue
     }
 
@@ -134,28 +119,31 @@ draw_text :: proc(
     }
 
     atlas_xy := [2]f32{
-      f32(idx % _FONT_ATLAS_DIM.x),
-      f32(idx / _FONT_ATLAS_DIM.x),
+      f32(idx % FONT_ATLAS_DIM.x),
+      f32(idx / FONT_ATLAS_DIM.x),
     }
 
-    uv0 := atlas_xy * _UV_PER_GLYPH + [2]f32{
-      _GLYPH_TRIM[0] * _PX_PER_UV[0],
-      _GLYPH_TRIM[1] * _PX_PER_UV[1],
+    uv0 := atlas_xy * UV_PER_GLYPH + [2]f32{
+      GLYPH_TRIM[0] * PX_PER_UV[0],
+      GLYPH_TRIM[1] * PX_PER_UV[1],
     }
-    uv1 := (atlas_xy + [2]f32{1,1}) * _UV_PER_GLYPH - [2]f32{
-      _GLYPH_TRIM[2] * _PX_PER_UV[0],
-      _GLYPH_TRIM[3] * _PX_PER_UV[1],
-    }
-
-    trimmed_size := _GLYPH_SIZE - [2]f32{
-      _GLYPH_TRIM[0] + _GLYPH_TRIM[2],
-      _GLYPH_TRIM[1] + _GLYPH_TRIM[3],
+    uv1 := (atlas_xy + [2]f32{1,1}) * UV_PER_GLYPH - [2]f32{
+      GLYPH_TRIM[2] * PX_PER_UV[0],
+      GLYPH_TRIM[3] * PX_PER_UV[1],
     }
 
-    glyph_pos := base_pos + ([2]f32{x + _GLYPH_TRIM[0], y + _GLYPH_TRIM[1]}) * scale
+    trimmed_size := GLYPH_SIZE - [2]f32{
+      GLYPH_TRIM[0] + GLYPH_TRIM[2],
+      GLYPH_TRIM[1] + GLYPH_TRIM[3],
+    }
+
+    glyph_pos := base_pos + ([2]f32{x + GLYPH_TRIM[0], y + GLYPH_TRIM[1]}) * scale
+    if drop_shadow {
+      push_rect(glyph_pos + {-1,2}, trimmed_size * scale, shadow_color, {uv0.x, uv0.y, uv1.x, uv1.y}, tex_id = FONT_TEXTURE)
+    }
     push_rect(glyph_pos, trimmed_size * scale, color, {uv0.x, uv0.y, uv1.x, uv1.y}, tex_id = FONT_TEXTURE)
 
-    x += _GLYPH_SIZE.x
+    x += GLYPH_SIZE.x
   }
 
   return {base_pos.x, base_pos.y, total_size.x, total_size.y}
@@ -163,19 +151,21 @@ draw_text :: proc(
 
 draw_text_aligned :: proc (
   text : string,
-  pos : [2]f32,
+  position : [2]f32,
   color : [4]f32 = {1,1,1,1},
   scale : f32 = 2.0,
   max_width : f32 = -1.0,
   alignment : utils.XAlignment = .Left,
-  pivot     : utils.Pivot = .TopLeft
+  pivot     : utils.Pivot = .TopLeft,
+  drop_shadow := false,
+  shadow_color : [4]f32 = {0,0,0,1},
 ) {
-  if max_width <= _GLYPH_SIZE.x * scale {
-    draw_text(text, pos, color, scale, pivot)
+  if max_width <= GLYPH_SIZE.x * scale {
+    draw_text(text, position, color, scale, pivot, drop_shadow, shadow_color)
     return
   }
 
-  x_base, y : f32 = pos.x, pos.y
+  x_base, y : f32 = position.x, position.y
   slice_begin : int = 0
   last_space  : int = -1
   line_width  : f32 = 0
@@ -184,7 +174,7 @@ draw_text_aligned :: proc (
   for i < len(text) {
     char := text[i]
 
-    if char == '\n' || line_width + _GLYPH_SIZE.x * scale > max_width {
+    if char == '\n' || line_width > max_width {
       break_index := i
       if char != '\n' && last_space > slice_begin {
         break_index = last_space
@@ -193,7 +183,7 @@ draw_text_aligned :: proc (
       string_slice := text[slice_begin : break_index]
 
       line_len := len(string_slice)
-      actual_width := f32(line_len) * _GLYPH_SIZE.x * scale
+      actual_width := f32(line_len) * GLYPH_SIZE.x * scale
 
       x := x_base
       if alignment == .Center {
@@ -202,9 +192,9 @@ draw_text_aligned :: proc (
         x += (max_width - actual_width)
       }
 
-      draw_text(string_slice, {x, y}, color, scale)
+      draw_text(string_slice, {math.floor(x), math.floor(y)}, color, scale, drop_shadow = drop_shadow, shadow_color = shadow_color)
 
-      y += _GLYPH_SIZE.y * scale
+      y += GLYPH_SIZE.y * scale
 
       slice_begin = i + 1 if char == '\n' else break_index + 1
       i = slice_begin
@@ -217,7 +207,7 @@ draw_text_aligned :: proc (
       last_space = i
     }
 
-    line_width += _GLYPH_SIZE.x * scale
+    line_width += GLYPH_SIZE.x * scale
     i += 1 if char != '\t' else 4
   }
 
@@ -225,7 +215,7 @@ draw_text_aligned :: proc (
   if slice_begin < len(text) {
     string_slice := text[slice_begin:]
     line_len := len(string_slice)
-    actual_width := f32(line_len) * _GLYPH_SIZE.x * scale
+    actual_width := f32(line_len) * GLYPH_SIZE.x * scale
 
     x := x_base
     if alignment == .Center {
@@ -233,6 +223,6 @@ draw_text_aligned :: proc (
     } else if alignment == .Right {
       x += (max_width - actual_width)
     }
-    draw_text(string_slice, {x, y}, color, scale)
+    draw_text(string_slice, {math.floor(x), math.floor(y)}, color, scale, drop_shadow = drop_shadow, shadow_color = shadow_color)
   }
 }

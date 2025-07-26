@@ -3,15 +3,15 @@ package app
 import "base:runtime"
 import "core:fmt"
 import "vendor:glfw"
+
 import "engine:render"
-import "engine:utils"
 
 WINDOW_HINT_NONE      :: 0
 WINDOW_HINT_RESIZABLE :: 1 << 0
 WINDOW_HINT_MAXIMIZED :: 1 << 1
 WINDOW_HINT_DECORATED :: 1 << 2
 
-@(private) _app_state : AppState
+_app_state : AppState
 AppState :: struct {
   glfw_handle : glfw.WindowHandle,
   frame_timestamp : f32,
@@ -26,14 +26,16 @@ run :: proc (
   hint_flags : u32 = WINDOW_HINT_NONE,
   init_proc : proc(),
   frame_proc : proc(),
-  shutdown_proc : proc(),
+  shutdown_proc : proc() = nil,
 ) {
+	when ODIN_OS == .Windows {
+		windows.FreeConsole()
+	}
+
   if !glfw.Init() {
     fmt.println("Failed to Initialize GLFW")
     return
   }
-
-  utils.load_exec_dir()
 
   glfw.WindowHint(glfw.RESIZABLE, hint_flags & WINDOW_HINT_RESIZABLE != 0)
   glfw.WindowHint(glfw.MAXIMIZED, hint_flags & WINDOW_HINT_MAXIMIZED != 0)
@@ -82,7 +84,9 @@ run :: proc (
     glfw.SwapBuffers(window)
   }
 
-  shutdown_proc()
+  if shutdown_proc != nil {
+    shutdown_proc()
+  }
 }
 
 get_resolution :: proc() -> [2]f32 {
