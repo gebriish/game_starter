@@ -342,6 +342,7 @@ push_triangle :: proc(
   _render_state.vertex_count += 3
 }
 
+
 push_rect_rounded :: proc(
   pos, size : [2]f32,
   color : [4]f32 = 1.0,
@@ -384,7 +385,7 @@ push_rect_rounded :: proc(
     {0.0, 1.0}, {-1.0, 0.0}, {0.0, -1.0}, {1.0, 0.0}
   }
 
-  vertex_positions : [12][2]f32
+  @(static) vertex_positions : [12][2]f32
   num_vertices := u32(0)
   
   for i in 0..<4 {
@@ -442,7 +443,6 @@ push_rect_rounded :: proc(
 
     p1, p2, p3 := corner, corner + anti_clockwise[i] * radius, corner + clock_wise[i] * radius
     
-  
     push_triangle( 
       p1, p2, p3,
       color, color, color,

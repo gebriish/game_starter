@@ -1,3 +1,3 @@
 package ui
 
-MAX_ELEMENTS :: 2096
+MAX_ELEMENTS :: 4096

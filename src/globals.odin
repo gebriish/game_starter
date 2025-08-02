@@ -1,7 +1,9 @@
 package user
 
-vec2 :: [2]f32
-vec4 :: [4]f32
-ivec2 :: [2]int
+Vec2  :: [2]f32
+iVec2 :: [2]u32
+
+Position :: Vec2
+Size :: Vec2
 
 MAX_Z_LAYERS :: 1024

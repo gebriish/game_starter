@@ -65,21 +65,31 @@ in vec2 f_texcoords;
 in float f_texid;
 in vec2 f_circcoords;
 in vec2 f_bezrcoords;
+
 out vec4 FragColor;
+
 uniform sampler2D u_texslots[8];
 uniform int u_wireframe;
+
 void main() {
-  if (u_wireframe >= 1) { FragColor = vec4(120, 191, 73, 255)/255; return; }
+  if (u_wireframe >= 1) { FragColor = vec4(0.470588, 0.749019, 0.286274, 1.0); return; }
+
   int texid = int(f_texid);
-  vec4 tex_color = texture(u_texslots[texid], f_texcoords);
-  vec4 final_color = f_color * tex_color;
+
+  vec4 final_color = f_color * texture(u_texslots[texid], f_texcoords);
+
+  float face_scalar = gl_FrontFacing ? 1.0 : -1.0;
   
-  float dist = length(f_circcoords * 2.0 - 1.0) - 1.0;
-  float edge_width = fwidth(dist) * 0.5;
+  vec2 centered_coords = f_circcoords * 2.0 - 1.0;
+  float dist = length(centered_coords) - 1.0;
+
+  float edge_width = fwidth(dist) * 0.5 * face_scalar;
   float alpha = smoothstep(edge_width, -edge_width, dist);
 
-  float mask =f_bezrcoords.x * f_bezrcoords.x - f_bezrcoords.y;
-  mask *= gl_FrontFacing ? 1.0 : -1.0;
+  if (alpha <= 0.0) discard;
+
+  float mask = f_bezrcoords.x * f_bezrcoords.x - f_bezrcoords.y;
+  mask *= face_scalar;
   edge_width = fwidth(mask) * 0.5;
   alpha *= smoothstep(edge_width, -edge_width, mask);
   final_color.a *= alpha;

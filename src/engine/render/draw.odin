@@ -138,6 +138,8 @@ draw_text :: proc(
     }
 
     glyph_pos := base_pos + ([2]f32{x + GLYPH_TRIM[0], y + GLYPH_TRIM[1]}) * scale
+    glyph_pos.x = cast(f32) int(glyph_pos.x)
+    glyph_pos.y = cast(f32) int(glyph_pos.y)
     if drop_shadow {
       push_rect(glyph_pos + {-1,2}, trimmed_size * scale, shadow_color, {uv0.x, uv0.y, uv1.x, uv1.y}, tex_id = FONT_TEXTURE)
     }

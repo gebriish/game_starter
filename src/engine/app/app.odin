@@ -6,10 +6,12 @@ import "vendor:glfw"
 
 import "engine:render"
 
-WINDOW_HINT_NONE      :: 0
-WINDOW_HINT_RESIZABLE :: 1 << 0
-WINDOW_HINT_MAXIMIZED :: 1 << 1
-WINDOW_HINT_DECORATED :: 1 << 2
+WindowHint :: enum {
+  None = 0,
+  Resizable = 1 << 0,
+  Maximized = 1 << 1,
+  Decorated = 1 << 2
+}
 
 _app_state : AppState
 AppState :: struct {
@@ -23,7 +25,7 @@ run :: proc (
   window_x : i32,
   window_y : i32,
   title : cstring,
-  hint_flags : u32 = WINDOW_HINT_NONE,
+  hint_flags : WindowHint = .None,
   init_proc : proc(),
   frame_proc : proc(),
   shutdown_proc : proc() = nil,
@@ -37,9 +39,9 @@ run :: proc (
     return
   }
 
-  glfw.WindowHint(glfw.RESIZABLE, hint_flags & WINDOW_HINT_RESIZABLE != 0)
-  glfw.WindowHint(glfw.MAXIMIZED, hint_flags & WINDOW_HINT_MAXIMIZED != 0)
-  glfw.WindowHint(glfw.DECORATED, hint_flags & WINDOW_HINT_DECORATED != 0)
+  glfw.WindowHint(glfw.RESIZABLE, hint_flags & .Resizable != .None)
+  glfw.WindowHint(glfw.MAXIMIZED, hint_flags & .Maximized != .None)
+  glfw.WindowHint(glfw.DECORATED, hint_flags & .Decorated != .None)
   glfw.WindowHint(glfw.SAMPLES, 8)
 
   window := glfw.CreateWindow(
@@ -89,7 +91,8 @@ run :: proc (
   }
 }
 
-get_resolution :: proc() -> [2]f32 {
+get_resolution :: proc() -> [2]f32 
+{
   x, y := glfw.GetWindowSize(_app_state.glfw_handle)
   return {cast(f32) x, cast(f32) y}
 }

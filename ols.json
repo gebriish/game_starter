@@ -11,6 +11,6 @@
   ],
   "collections": [
     {"name": "engine", "path": "src/engine"},
-    {"name": "user", "path": "src"}
+    {"name": "user", "path": "src"},
   ]
 }
