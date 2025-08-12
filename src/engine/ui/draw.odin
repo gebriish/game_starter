@@ -23,7 +23,7 @@ generate_draw_cmd :: proc() -> []DrawCmd {
   return _ctx.draw_commands[:cmd_count]
 }
 
-traverse_for_drawing :: proc(box : ^UI_Box, cmd_count : ^int) {
+traverse_for_drawing :: proc(box : ^Box, cmd_count : ^int) {
   if box == nil || cmd_count^ >= MAX_ELEMENTS {
     return
   }
@@ -52,11 +52,9 @@ traverse_for_drawing :: proc(box : ^UI_Box, cmd_count : ^int) {
   }
 }
 
-should_draw_box :: proc(box : ^UI_Box) -> bool {
+should_draw_box :: proc(box : ^Box) -> bool {
   if box.color.a <= 0.0 { return false }
   if box.size.width.value <= 0 || box.size.height.value <= 0 { return false }
   if box.is_container { return false }
-  
-  //TODO : draw bounds checks
   return true
 }

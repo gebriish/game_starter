@@ -14,38 +14,23 @@ Pivot :: enum {
   BottomRight,
 }
 
-XAlignment :: enum {
-  Left,
-  Center,
-  Right
-}
+/* 
+  linear offset from topleft as origin
+*/
+pivot_offset :: proc(pivot : Pivot) -> vec2 {
+  switch pivot {
+  case .TopLeft: return {0,0}
+  case .TopCenter: return {0.5,0}
+  case .TopRight: return {1,0}
 
-YAlignment :: enum {
-  Top,
-  Middle,
-  Bottom
-}
+  case .MidLeft: return {0,0.5}
+  case .MidCenter: return {0.5,0.5}
+  case .MidRight: return {1,0.5}
 
-pivot_scale :: proc(pivot : Pivot) -> [2]f32
-{
-  @(static, rodata) pivot_scales := [Pivot][2]f32 {
-    .TopLeft = {0, 0},
-    .TopCenter = {0.5, 0},
-    .TopRight = {1, 0},
-
-    .MidLeft = {0, 0.5},
-    .MidCenter = {0.5, 0.5},
-    .MidRight = {1, 0.5},
-
-    .BottomLeft = {0, 1},
-    .BottomCenter = {0.5, 1},
-    .BottomRight = {1, 1},
+  case .BottomLeft: return {0,1}
+  case .BottomCenter: return {0.5,1}
+  case .BottomRight: return {1,1}
+  case : return {0,0}
   }
-  return pivot_scales[pivot]
 }
 
-pivot_in_rect :: proc(position, size : [2]f32, pivot : Pivot) -> [2]f32
-{
-  offset := pivot_scale(pivot) * size
-  return position + offset
-}

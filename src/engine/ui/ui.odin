@@ -6,11 +6,11 @@ import "core:math"
 
 UI_ID :: distinct i32
 
-_ctx: UI_Context
-UI_Context :: struct {
-  open_element: ^UI_Box,
+_ctx: Context
+Context :: struct {
+  open_element: ^Box,
 
-  flat_list: [MAX_ELEMENTS]UI_Box,
+  flat_list: [MAX_ELEMENTS]Box,
   num_elements: u32,
 
   pointer : struct {
@@ -26,11 +26,11 @@ UI_Context :: struct {
   draw_commands : [MAX_ELEMENTS]DrawCmd,
 }
 
-UI_Box :: struct {
-  parent: ^UI_Box,
-  next : ^UI_Box,
-  first, last : ^UI_Box,
-  using _config : UI_Config, /* embed */
+Box :: struct {
+  parent: ^Box,
+  next : ^Box,
+  first, last : ^Box,
+  using _config : Config, /* embed */
 
   position : [2]f32,
   creation_idx : u32,
@@ -38,13 +38,13 @@ UI_Box :: struct {
 }
 
 
-fixed :: proc(x : f32) -> UI_SizeAxis { return {value = x, type = .Fixed }}
-percent :: proc(x : f32) -> UI_SizeAxis { return {value = x, type = .Perc }}
-root_percent :: proc(x : f32) -> UI_SizeAxis { return {value = x, type = .RootPerc }}
-fit :: proc() -> UI_SizeAxis { return { type = .Fit }}
-fill :: proc() -> UI_SizeAxis { return {type = .Fill}}
+fixed :: proc(x : f32) -> SizeAxis { return {value = x, type = .Fixed }}
+percent :: proc(x : f32) -> SizeAxis { return {value = x, type = .Perc }}
+root_percent :: proc(x : f32) -> SizeAxis { return {value = x, type = .RootPerc }}
+fit :: proc() -> SizeAxis { return { type = .Fit }}
+fill :: proc() -> SizeAxis { return {type = .Fill}}
 
-UI_SizeAxis :: struct {
+SizeAxis :: struct {
   value : f32,
   type : enum u32 {
     Fixed,
@@ -55,19 +55,26 @@ UI_SizeAxis :: struct {
   },
 }
 
-UI_Size :: struct {
-  width, height : UI_SizeAxis
+Size :: struct {
+  width, height : SizeAxis
 }
 
-UI_Layout :: enum u32 { Vertical, Horizontal }
-UI_Padding :: struct { 
-  left, top, right, bottom : f32 
-}
+Layout :: enum u32 { Vertical, Horizontal }
+Padding :: struct { left, top, right, bottom : f32 }
 
-UI_Config :: struct {
-  size : UI_Size,
-  padding : UI_Padding,
-  direction : UI_Layout,
+/*
+  The elements with custom positioning are
+  de-coupled from the ui layout algorithm, and the 
+  'cursor' positioning.
+
+  Ideally these elements are the only child of the parent, 
+  like the parent is the main ui 'component'. 
+*/
+
+Config :: struct {
+  size : Size,
+  padding : Padding,
+  direction : Layout,
   child_gap : f32,
 
   // visuals
@@ -89,8 +96,8 @@ set_pointer :: proc(x, y : f32, down : bool) {
 
 begin_layout :: proc(
   size : [2]f32,
-  direction := UI_Layout.Vertical,
-  padding := UI_Padding {5,5,5,5},
+  direction := Layout.Vertical,
+  padding := Padding {5,5,5,5},
   child_gap :f32= 5
 )
 {
@@ -126,7 +133,7 @@ open_box :: proc() -> u32
 
   parent := _ctx.open_element
   element := &_ctx.flat_list[_ctx.num_elements]
-  element^ = UI_Box{
+  element^ = Box{
     parent = parent,
     next = nil,
     first = nil,
@@ -209,7 +216,7 @@ close_box :: proc()
   _ctx.open_element = parent
 }
 
-config_box :: proc(config : UI_Config)
+config_box :: proc(config : Config)
 {
   if _ctx.open_element == nil { return }
   element := _ctx.open_element
@@ -218,7 +225,7 @@ config_box :: proc(config : UI_Config)
   root := &_ctx.flat_list[0]
   element._config = config
   
-  resolve_axis :: proc(axis: ^UI_SizeAxis, parent_size, root_size, available_space, child_gap : f32) {
+  resolve_axis :: proc(axis: ^SizeAxis, parent_size, root_size, available_space, child_gap : f32) {
     #partial switch axis.type {
     case .Perc:
       axis.value = axis.value * parent_size - child_gap * 0.5

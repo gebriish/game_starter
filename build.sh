@@ -1,2 +1,1 @@
-
-odin run src/build/build.odin -file
+odin run src/build -- "$@"
