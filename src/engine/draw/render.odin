@@ -4,10 +4,12 @@ import "core:mem"
 import "core:math/linalg"
 import "core:math"
 import "core:fmt"
+import "core:os"
 
 import "engine:utils"
 
 import gl "vendor:OpenGL"
+import tt "vendor:stb/truetype"
 
 render_state : RenderState
 RenderState :: struct {
@@ -28,14 +30,14 @@ RenderState :: struct {
   texture_slots : [MAX_TEXTURES]TextureHandle,
   num_textures : u32,
   texture_freelist : u32,
-
   active_pass : RenderPass,
+  font_atlas : DynamicFontAtlas,
 }
 
 RenderVertex :: struct {
   position : vec2,
   color    : vec4,
-  uv       : vec2,
+  uv       : vec2, // 0-1
   tex_id   : f32,
 }
 
@@ -57,6 +59,11 @@ Texture :: struct {
   channels : i32,
 }
 
+TextureType :: enum {
+  Normal,
+  Font,
+}
+
 RenderPass :: struct {
   draw_type : DrawType,
   coord_space : CoordSpace,
@@ -67,7 +74,13 @@ DrawType :: enum {
   Line,
 }
 
-upload_texture :: proc(texture: Texture) -> u32 {
+Font :: struct {
+	char_data: [CHAR_COUNT]tt.bakedchar,
+  image : Texture,
+}
+font : Font
+
+upload_texture :: proc(texture: Texture, type := TextureType.Normal) -> u32 {
   if texture.data == nil || texture.width <= 0 || texture.height <= 0 || texture.channels < 1 || texture.channels > 4 {
     fmt.eprintln("render::upload_texture: Invalid texture input")
     return WHITE_TEXTURE
@@ -75,8 +88,7 @@ upload_texture :: proc(texture: Texture) -> u32 {
 
   result_idx: u32
   
-  // Try to get a slot from freelist first (skip WHITE_TEXTURE slot 0)
-  if render_state.texture_freelist != MAX_TEXTURES {
+  if render_state.texture_freelist != 0 {
     result_idx = render_state.texture_freelist
     handle := &render_state.texture_slots[result_idx]
     render_state.texture_freelist = handle.next
@@ -120,10 +132,15 @@ upload_texture :: proc(texture: Texture) -> u32 {
   gl.ActiveTexture(gl.TEXTURE0 + result_idx)
   gl.BindTexture(gl.TEXTURE_2D, handle.id)
   
-  gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-  gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+  gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, type == .Normal ? gl.NEAREST : gl.LINEAR)
+  gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, type == .Normal ? gl.NEAREST : gl.LINEAR)
   gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
   gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
+
+  if type == .Font && texture.channels == 1 {
+    swizzle := [4]i32{gl.ONE, gl.ONE, gl.ONE, gl.RED}
+    gl.TexParameteriv(gl.TEXTURE_2D, gl.TEXTURE_SWIZZLE_RGBA, &swizzle[0])
+  }
   
   gl.TexImage2D(
     gl.TEXTURE_2D,
@@ -235,6 +252,8 @@ render_init :: proc(set_proc_addr : gl.Set_Proc_Address_Type) {
     1,1,
     4,
   })
+
+  init_font_system()
 }
 
 push_line_circle :: proc(

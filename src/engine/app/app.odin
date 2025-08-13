@@ -15,6 +15,7 @@ WindowHint :: enum {
   Resizable = 1 << 0,
   Maximized = 1 << 1,
   Decorated = 1 << 2,
+  VSync     = 1 << 3,
 }
 
 CursorMode :: enum {
@@ -56,7 +57,7 @@ run :: proc(
     return
   }
   glfw.MakeContextCurrent(window)
-  glfw.SwapInterval(0)
+  glfw.SwapInterval(flags & .VSync == .None ? 0 : 1)
 
   app_state.glfw_handle = window
   app_state.window_x = width
@@ -291,19 +292,9 @@ pixels_to_ndc :: proc(pos : vec2) -> vec2 {
   return ndc
 }
 
-pixels_to_world_default :: proc(pixels : vec2) -> vec2 {
-  ndc := pixels_to_ndc(pixels)
-  world := draw.ndc_to_world(ndc)
-  return world
-}
 
-pixels_to_world_custom :: proc(pixels : vec2, coord_space : draw.CoordSpace) -> vec2 {
+pixels_to_world :: proc(pixels : vec2, coord_space : draw.CoordSpace) -> vec2 {
   ndc := pixels_to_ndc(pixels)
   world := draw.ndc_to_world(coord_space, ndc)
   return world
-}
-
-pixels_to_world :: proc {
-  pixels_to_world_custom,
-  pixels_to_world_default,
 }

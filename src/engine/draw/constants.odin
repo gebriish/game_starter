@@ -11,6 +11,14 @@ MAX_VERTEX_COUNT ::  MAX_TRIANGLES * 3
 MAX_TEXTURES :: 16
 
 WHITE_TEXTURE :: 0
+FONT_TEXTURE  :: 1
+
+FONT_BITMAP_W :: 256
+FONT_BITMAP_H :: 256
+CHAR_COUNT    :: 96
+
+FONT_PATH :: "res/varela.ttf"
+FONT_HEIGHT :: 24
 
 vec2 :: utils.vec2
 vec4 :: utils.vec4

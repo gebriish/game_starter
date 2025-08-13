@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:os"
 import "core:os/os2"
 import "core:time"
+import "core:crypto/hash"
 
 BuildTarget :: enum {
   windows,
@@ -20,16 +21,7 @@ else {
 }
 
 main :: proc() {
-  for arg in os.args {
-    switch arg {
-    case "sprite":
-    }
-  }
-
   compile_game()
-}
-
-pack_sprites :: proc() {
 }
 
 compile_game :: proc() {
@@ -49,16 +41,15 @@ compile_game :: proc() {
 
   make_directory_if_not_exist(full_out_dir_path)
 
-  { // build command
+  {
     c := [?]string {
       "odin",
       "build",
       "src",
-      "-debug",
       "-collection:engine=src/engine",
       "-collection:user=src",
       fmt.tprintf("-out:%v/%v", out_dir, EXE_NAME),
-      "-subsystem:windows" when TARGET == .windows else ""
+      //"-subsystem:windows" if TARGET == .windows else "",
     }
     run_cmd(..c[:])
   }
