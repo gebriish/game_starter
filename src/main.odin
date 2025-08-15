@@ -18,17 +18,20 @@ main :: proc() {
   )
 }
 
-
 init :: proc() {
   game_init()
 }
 
-CAMERA_HEIGHT :: 625
 
 update :: proc(delta_time: f32) {
   window := app.get_resolution()
   aspect_ratio := window.x / window.y
-  camera_space := draw.get_world_space(ctx.camera_position, {CAMERA_HEIGHT * aspect_ratio, CAMERA_HEIGHT})
+  camera_space : draw.CoordSpace
+  if aspect_ratio > 1.0 {
+    camera_space = draw.get_world_space(ctx.camera_position, {1.0,1.0/aspect_ratio} * ctx.camera_height)
+  } else {
+    camera_space = draw.get_world_space(ctx.camera_position, {aspect_ratio, 1.0} * ctx.camera_height)
+  }
   cursor_w := app.pixels_to_world(app.cursor_pos(), camera_space)
 
   game_update(delta_time)
@@ -39,7 +42,6 @@ update :: proc(delta_time: f32) {
     draw_type = .Triangle,
     coord_space = camera_space
   }) {
-  
     for &entity in get_entities() {
       if entity.slot_free { continue }
       draw.push_rect(
@@ -52,9 +54,21 @@ update :: proc(delta_time: f32) {
 
     for &entity in get_entities() {
       if entity.slot_free { continue }
-      draw.text(fmt.tprintf("[%.1f, %.1f]", entity.position.x, entity.position.y),entity.position,pivot=.TopCenter,color=draw.color(0xb8bb26))
+      draw.text(fmt.tprintf("%p", &entity),entity.position,pivot=.TopCenter,color=draw.color(0xb8bb26))
     }
+  }
 
+  screen_space := draw.get_screen_space(window)
+
+  if draw.push_frame({
+    draw_type = .Triangle,
+    coord_space = screen_space
+  }) {
+    debug_string := fmt.tprintf(
+      "gamepad_0 connected (%v)", 
+      app.is_gamepad_connected(0)
+    )
+    draw.text(debug_string, 10)
   }
 
   free_all(context.temp_allocator)

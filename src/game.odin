@@ -14,12 +14,15 @@ GameState :: struct {
 
   player_handle : EntityHandle,
   camera_position : vec2,
+  camera_height : f32
 }
 
 game_init :: proc() {
   ctx.entities = make([dynamic]Entity)
   ctx.free_list_head = 0
   ctx.next_handle = 1
+
+  ctx.camera_height = 800
   
   append(&ctx.entities, Entity{
     position = {0, 0},
@@ -36,7 +39,7 @@ game_init :: proc() {
   player.color = draw.color(0xebdbc7)
 
   floor := get_entity(create_entity())
-  floor.size = {300,80}
+  floor.size = {625,32}
   floor.pivot = .TopCenter
   floor.color = draw.color(0x282828)
 }

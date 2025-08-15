@@ -8,32 +8,34 @@ vec4 :: utils.vec4
 ivec2 :: utils.ivec2
 ivec4 :: utils.ivec4
 
-KeyCode :: enum u32 {
-  SPACE         ,
-  APOSTROPHE    , 
-  COMMA         , /* , */
-  MINUS         , /* - */
-  PERIOD        , /* . */
-  SLASH         , /* / */
-  SEMICOLON     , /* ; */
-  EQUAL         , /* :: */
-  LEFT_BRACKET  , /* [ */
-  BACKSLASH     , /* \ */
-  RIGHT_BRACKET , /* ] */
-  GRAVE_ACCENT  , /* ` */
-  WORLD_1       , /* non-US #1 */
-  WORLD_2       , /* non-US #2 */
+MAX_GAMEPADS :: 2
 
-  ZERO  ,
-  ONE   ,
-  TWO   ,
-  THREE ,
-  FOUR  ,
-  FIVE  ,
-  SIX   ,
-  SEVEN ,
-  EIGHT ,
-  NINE  ,
+KeyCode :: enum u32 {
+  Space         ,
+  Apostrophe    , 
+  Comma         , /* , */
+  Minus         , /* - */
+  Period        , /* . */
+  Slash         , /* / */
+  Semicolon     , /* ; */
+  Equal         , /* :: */
+  Left_Bracket  , /* [ */
+  Backslash     , /* \ */
+  Right_Bracket , /* ] */
+  Grave_Accent  , /* ` */
+  World_1       , /* non-us #1 */
+  World_2       , /* non-us #2 */
+
+  Zero  ,
+  One   ,
+  Two   ,
+  Three ,
+  Four  ,
+  Five  ,
+  Six   ,
+  Seven ,
+  Eight ,
+  Nine  ,
 
   A ,
   B ,
@@ -62,25 +64,25 @@ KeyCode :: enum u32 {
   Y ,
   Z ,
 
-  ESCAPE       ,
-  ENTER        ,
-  TAB          ,
-  BACKSPACE    ,
-  INSERT       ,
-  DELETE       ,
-  RIGHT        ,
-  LEFT         ,
-  DOWN         ,
-  UP           ,
-  PAGE_UP      ,
-  PAGE_DOWN    ,
-  HOME         ,
-  END          ,
-  CAPS_LOCK    ,
-  SCROLL_LOCK  ,
-  NUM_LOCK     ,
-  PRINT_SCREEN ,
-  PAUSE        ,
+  Escape       ,
+  Enter        ,
+  Tab          ,
+  Backspace    ,
+  Insert       ,
+  Delete       ,
+  Right        ,
+  Left         ,
+  Down         ,
+  Up           ,
+  Page_Up      ,
+  Page_Down    ,
+  Home         ,
+  End          ,
+  Caps_Lock    ,
+  Scroll_Lock  ,
+  Num_Lock     ,
+  Print_Screen ,
+  Pause        ,
 
   F1  ,
   F2  ,
@@ -119,33 +121,60 @@ KeyCode :: enum u32 {
   KP_8 ,
   KP_9 ,
 
-  KP_DECIMAL  ,
-  KP_DIVIDE   ,
-  KP_MULTIPLY ,
-  KP_SUBTRACT ,
-  KP_ADD      ,
-  KP_ENTER    ,
-  KP_EQUAL    ,
+  KP_Decimal  ,
+  KP_Divide   ,
+  KP_Multiply ,
+  KP_Subtract ,
+  KP_Add      ,
+  KP_Enter    ,
+  KP_Equal    ,
 
-  LEFT_SHIFT    ,
-  LEFT_CONTROL  ,
-  LEFT_ALT      ,
-  LEFT_SUPER    ,
-  RIGHT_SHIFT   ,
-  RIGHT_CONTROL ,
-  RIGHT_ALT     ,
-  RIGHT_SUPER   ,
-  MENU          ,
+  Left_Shift    ,
+  Left_Control  ,
+  Left_Alt      ,
+  Left_Super    ,
+  Right_Shift   ,
+  Right_Control ,
+  Right_Alt     ,
+  Right_Super   ,
+  Menu          ,
 }
 
 MouseCode :: enum u32 {
-  BUTTON_1 = 0, /* left */
-  BUTTON_2, /* right */
-  BUTTON_3, /* middle */
-  BUTTON_4,
-  BUTTON_5,
-  BUTTON_6,
-  BUTTON_7,
-  BUTTON_8,
+  Button_1 = 0, /* left */
+  Button_2, /* right */
+  Button_3, /* middle */
+  Button_4,
+  Button_5,
+  Button_6,
+  Button_7,
+  Button_8,
+}
+
+GamepadCode :: enum u32 {
+  A = 0, // Cross
+  B, // Circle
+  X, // Square
+  Y, // Triangle
+  Left_Bumper,
+  Right_Bumper,
+  Back,        // Share on PlayStation
+  Start,       // Options on PlayStation
+  Guide,       // PS button on PlayStation
+  Left_Thumb,
+  Right_Thumb,
+  DPad_Up,
+  DPad_Right,
+  DPad_Down,
+  DPad_Left,
+}
+
+GamepadAxis :: enum {
+  Left_X = 0,
+  Left_Y,
+  Right_X,
+  Right_Y,
+  Left_Trigger,
+  Right_Trigger,
 }
 

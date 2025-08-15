@@ -108,6 +108,8 @@ run :: proc(
           mouse_current += {m}
         }
       }
+
+      update_gamepad_input()
     }
 
     if app_state.resize_pending && resize_proc != nil {
@@ -127,33 +129,33 @@ run :: proc(
 
 _get_platfrom_keycode :: #force_inline proc(code : KeyCode) -> u32 {
   switch code { // glfw keycodes
-    case .SPACE         : return 32
-    case .APOSTROPHE    : return 39  
-    case .COMMA         : return 44  
-    case .MINUS         : return 45  
-    case .PERIOD        : return 46  
-    case .SLASH         : return 47  
-    case .SEMICOLON     : return 59  
-    case .EQUAL         : return 61  
-    case .LEFT_BRACKET  : return 91  
-    case .BACKSLASH     : return 92  
-    case .RIGHT_BRACKET : return 93  
-    case .GRAVE_ACCENT  : return 96  
-    case .WORLD_1       : return 161 
-    case .WORLD_2       : return 162 
-    case .ZERO  : return 48
-    case .ONE   : return 49
-    case .TWO   : return 50
-    case .THREE : return 51
-    case .FOUR  : return 52
-    case .FIVE  : return 53
-    case .SIX   : return 54
-    case .SEVEN : return 55
-    case .EIGHT : return 56
-    case .NINE  : return 57
+    case .Space          : return 32
+    case .Apostrophe    : return 39  
+    case .Comma         : return 44  
+    case .Minus         : return 45  
+    case .Period        : return 46  
+    case .Slash         : return 47  
+    case .Semicolon     : return 59  
+    case .Equal         : return 61  
+    case .Left_Bracket  : return 91  
+    case .Backslash     : return 92  
+    case .Right_Bracket : return 93  
+    case .Grave_Accent  : return 96  
+    case .World_1       : return 161 
+    case .World_2       : return 162 
+    case .Zero  : return 48
+    case .One   : return 49
+    case .Two   : return 50
+    case .Three : return 51
+    case .Four  : return 52
+    case .Five  : return 53
+    case .Six   : return 54
+    case .Seven : return 55
+    case .Eight : return 56
+    case .Nine  : return 57
     case .A : return 65
     case .B : return 66
-    case .C : return 67
+    case .C : return 6
     case .D : return 68
     case .E : return 69
     case .F : return 70
@@ -177,25 +179,25 @@ _get_platfrom_keycode :: #force_inline proc(code : KeyCode) -> u32 {
     case .X : return 88
     case .Y : return 89
     case .Z : return 90
-    case .ESCAPE       : return 256
-    case .ENTER        : return 257
-    case .TAB          : return 258
-    case .BACKSPACE    : return 259
-    case .INSERT       : return 260
-    case .DELETE       : return 261
-    case .RIGHT        : return 262
-    case .LEFT         : return 263
-    case .DOWN         : return 264
-    case .UP           : return 265
-    case .PAGE_UP      : return 266
-    case .PAGE_DOWN    : return 267
-    case .HOME         : return 268
-    case .END          : return 269
-    case .CAPS_LOCK    : return 280
-    case .SCROLL_LOCK  : return 281
-    case .NUM_LOCK     : return 282
-    case .PRINT_SCREEN : return 283
-    case .PAUSE        : return 284
+    case .Escape       : return 256
+    case .Enter        : return 257
+    case .Tab          : return 258
+    case .Backspace    : return 259
+    case .Insert       : return 260
+    case .Delete       : return 261
+    case .Right        : return 262
+    case .Left         : return 263
+    case .Down         : return 264
+    case .Up           : return 265
+    case .Page_Up      : return 266
+    case .Page_Down    : return 267
+    case .Home         : return 268
+    case .End          : return 269
+    case .Caps_Lock    : return 280
+    case .Scroll_Lock  : return 281
+    case .Num_Lock     : return 282
+    case .Print_Screen : return 283
+    case .Pause        : return 284
     case .F1  : return 290
     case .F2  : return 291
     case .F3  : return 292
@@ -231,22 +233,22 @@ _get_platfrom_keycode :: #force_inline proc(code : KeyCode) -> u32 {
     case .KP_7 : return 327
     case .KP_8 : return 328
     case .KP_9 : return 329
-    case .KP_DECIMAL  : return 330
-    case .KP_DIVIDE   : return 331
-    case .KP_MULTIPLY : return 332
-    case .KP_SUBTRACT : return 333
-    case .KP_ADD      : return 334
-    case .KP_ENTER    : return 335
-    case .KP_EQUAL    : return 336
-    case .LEFT_SHIFT    : return 340
-    case .LEFT_CONTROL  : return 341
-    case .LEFT_ALT      : return 342
-    case .LEFT_SUPER    : return 343
-    case .RIGHT_SHIFT   : return 344
-    case .RIGHT_CONTROL : return 345
-    case .RIGHT_ALT     : return 346
-    case .RIGHT_SUPER   : return 347
-    case .MENU          : return 348
+    case .KP_Decimal  : return 330
+    case .KP_Divide   : return 331
+    case .KP_Multiply : return 332
+    case .KP_Subtract : return 333
+    case .KP_Add      : return 334
+    case .KP_Enter    : return 335
+    case .KP_Equal    : return 336
+    case .Left_Shift    : return 340
+    case .Left_Control  : return 341
+    case .Left_Alt      : return 342
+    case .Left_Super    : return 343
+    case .Right_Shift   : return 344
+    case .Right_Control : return 345
+    case .Right_Alt     : return 346
+    case .Right_Super   : return 347
+    case .Menu          : return 348
     case : return 0
   }
 }
@@ -271,6 +273,20 @@ setup_callbacks :: proc(window : glfw.WindowHandle) {
     app_state.window_y = y
     app_state.resize_pending = true
   })
+
+  glfw.SetJoystickCallback(proc "c" (joy_id: i32, event: i32) {
+    context = runtime.default_context()
+
+    if joy_id < 0 || joy_id >= len(input_state.gamepads) do return
+      switch event {
+      case glfw.CONNECTED:
+        input_state.gamepads[joy_id].connected = true
+        fmt.printf("Gamepad %d connected\n", joy_id)
+      case glfw.DISCONNECTED:
+        input_state.gamepads[joy_id].connected = false
+        fmt.printf("Gamepad %d disconnected\n", joy_id)
+      }
+    })
 }
 
 get_seconds :: proc() -> f32 {
@@ -305,3 +321,36 @@ pixels_to_world :: proc(pixels : vec2, coord_space : draw.CoordSpace) -> vec2 {
   world := draw.ndc_to_world(coord_space, ndc)
   return world
 }
+
+update_gamepad_input :: proc() {
+  using input_state
+
+  for &gamepad, i in gamepads {
+    gamepad.buttons_prev = gamepad.buttons_current
+    gamepad.buttons_current = {}
+
+    gamepad.connected = bool(glfw.JoystickPresent(cast(i32)i))
+
+    if !gamepad.connected do continue
+
+      buttons := glfw.GetJoystickButtons(cast(i32)i)
+      if buttons != nil && len(buttons) >= 15 {
+        for button_code in GamepadCode {
+          if cast(int)button_code < len(buttons) {
+            if buttons[button_code] == glfw.PRESS {
+              gamepad.buttons_current += {button_code}
+            }
+          }
+        }
+      }
+
+      axes := glfw.GetJoystickAxes(cast(i32)i)
+      if axes != nil && len(axes) >= 6 {
+        for axis_code in GamepadAxis {
+          if cast(int)axis_code < len(axes) {
+            gamepad.axes[axis_code] = axes[axis_code]
+          }
+        }
+      }
+    }
+  }
