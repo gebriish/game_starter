@@ -89,6 +89,8 @@ run :: proc(
       mouse_current = {}
       scroll = {}
 
+      had_char_input = false 
+
       glfw.PollEvents()
 
       x, y := glfw.GetCursorPos(window)
@@ -256,6 +258,11 @@ setup_callbacks :: proc(window : glfw.WindowHandle) {
     scroll = { f32(x), f32(y) }
   })
 
+  glfw.SetCharCallback(window, proc "c" (window: glfw.WindowHandle, codepoint : rune) {
+    context = runtime.default_context()
+    input_state.char_stream = codepoint
+    input_state.had_char_input = true
+  })
 
   glfw.SetFramebufferSizeCallback(window, proc "c" (window : glfw.WindowHandle, x, y : i32) {
     context = runtime.default_context()

@@ -15,6 +15,9 @@ InputState :: struct {
   cursor_prev : [2]f32,
 
   scroll : [2]f32,
+
+  char_stream : rune,
+  had_char_input : b32,
 }
 
 is_key_pressed :: proc(keycode : KeyCode) -> bool {
@@ -57,4 +60,8 @@ cursor_delta :: proc() -> [2]f32 {
 
 get_scroll :: proc() -> [2]f32 {
   return input_state.scroll
+}
+
+character_stream :: proc() -> (rune,bool) {
+  return input_state.char_stream, bool(input_state.had_char_input)
 }

@@ -10,3 +10,5 @@ ivec4 :: utils.ivec4
 
 Pivot :: utils.Pivot
 
+MAX_ENTITIES :: 4096
+

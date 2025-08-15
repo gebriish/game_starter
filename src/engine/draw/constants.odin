@@ -7,18 +7,14 @@ GL_VERSION_MINOR :: 5
 
 MAX_TRIANGLES :: 4096
 MAX_VERTEX_COUNT ::  MAX_TRIANGLES * 3
-
 MAX_TEXTURES :: 16
 
 WHITE_TEXTURE :: 0
-FONT_TEXTURE  :: 1
 
-FONT_BITMAP_W :: 256
-FONT_BITMAP_H :: 256
-CHAR_COUNT    :: 96
+CHAR_COUNT  :: 96
 
-FONT_PATH :: "res/varela.ttf"
-FONT_HEIGHT :: 24
+FONT_PATH :: "res/jetbrains_mono.ttf"
+FONT_HEIGHT :: 16
 
 vec2 :: utils.vec2
 vec4 :: utils.vec4
@@ -27,7 +23,6 @@ ivec2 :: utils.ivec2
 ivec4 :: utils.ivec4
 
 Pivot :: utils.Pivot
-
 
 @(rodata) VERTEX_SHADER := cast(cstring) `#version 450 core
 layout (location = 0) in vec2  a_pos;
@@ -55,10 +50,10 @@ void main() {
 
 @(rodata) FRAGMENT_SHADER := cast(cstring) `#version 450 core
 in VS_OUT {
-    vec2 position;
-    vec4 color;
-    vec2 texcoords;
-    float tex_id;
+  vec2 position;
+  vec4 color;
+  vec2 texcoords;
+  float tex_id;
 } fs_in;
 
 out vec4 frag_color;
@@ -66,7 +61,15 @@ out vec4 frag_color;
 uniform sampler2D u_texslots[16];
 
 void main() {
-    int tex_id = int(fs_in.tex_id);
-    vec4 sampled_texture = texture(u_texslots[tex_id], fs_in.texcoords);
-    frag_color = fs_in.color * sampled_texture;
+  int tex_id = int(fs_in.tex_id);
+  vec4 sampled_texture = texture(u_texslots[tex_id], fs_in.texcoords);
+  frag_color = fs_in.color;
+  if (tex_id == 1) {
+    float sdf_value = sampled_texture.a;
+    float edge_width = fwidth(sdf_value) * 0.5;
+    float alpha = smoothstep(0.5 - edge_width, 0.5 + edge_width, sdf_value);
+    frag_color.a *= alpha;
+  } else {
+    frag_color *= sampled_texture;
+  }
 }`

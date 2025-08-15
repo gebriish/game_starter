@@ -30,6 +30,7 @@ RenderState :: struct {
   texture_slots : [MAX_TEXTURES]TextureHandle,
   num_textures : u32,
   texture_freelist : u32,
+
   active_pass : RenderPass,
   font_atlas : DynamicFontAtlas,
 }
@@ -48,7 +49,7 @@ CoordSpace :: struct {
 }
 
 TextureHandle :: struct {
-  id : u32, // opengl id, not internal
+  gl_id : u32,
   next : u32, // freelist pointer to next ~INTERNAL ID~
 }
 
@@ -74,11 +75,22 @@ DrawType :: enum {
   Line,
 }
 
-Font :: struct {
-	char_data: [CHAR_COUNT]tt.bakedchar,
-  image : Texture,
+update_texture_unsafe :: proc(id : u32, w, h : i32, data : rawptr) {
+  handle := &render_state.texture_slots[id]
+  gl.ActiveTexture(gl.TEXTURE0 + id)
+  gl.BindTexture(gl.TEXTURE_2D, handle.gl_id)
+
+  gl.TexSubImage2D(
+    gl.TEXTURE_2D,
+    0,
+    0, 0,
+    w,
+    h,
+    gl.RED,
+    gl.UNSIGNED_BYTE,
+    data,
+  )
 }
-font : Font
 
 upload_texture :: proc(texture: Texture, type := TextureType.Normal) -> u32 {
   if texture.data == nil || texture.width <= 0 || texture.height <= 0 || texture.channels < 1 || texture.channels > 4 {
@@ -104,7 +116,7 @@ upload_texture :: proc(texture: Texture, type := TextureType.Normal) -> u32 {
   handle := &render_state.texture_slots[result_idx]
   handle^ = {}
   
-  gl.GenTextures(1, &handle.id)
+  gl.GenTextures(1, &handle.gl_id)
   
   internal_format: i32
   format: u32
@@ -123,14 +135,14 @@ upload_texture :: proc(texture: Texture, type := TextureType.Normal) -> u32 {
     format = gl.RGBA
   case:
     fmt.eprintln("render::upload_texture: Unsupported channel count")
-    handle.id = 0
+    handle.gl_id = 0
     handle.next = render_state.texture_freelist
     render_state.texture_freelist = result_idx
     return WHITE_TEXTURE
   }
   
   gl.ActiveTexture(gl.TEXTURE0 + result_idx)
-  gl.BindTexture(gl.TEXTURE_2D, handle.id)
+  gl.BindTexture(gl.TEXTURE_2D, handle.gl_id)
   
   gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, type == .Normal ? gl.NEAREST : gl.LINEAR)
   gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, type == .Normal ? gl.NEAREST : gl.LINEAR)
@@ -170,14 +182,14 @@ free_texture :: proc(texture_id: u32) -> bool {
 
   handle := &render_state.texture_slots[texture_id]
 
-  if handle.id == 0 {
+  if handle.gl_id == 0 {
     fmt.eprintln("render::free_texture: Texture already freed")
     return false
   }
 
-  gl.DeleteTextures(1, &handle.id)
+  gl.DeleteTextures(1, &handle.gl_id)
 
-  handle.id = 0
+  handle.gl_id = 0
   handle.next = render_state.texture_freelist
   render_state.texture_freelist = texture_id
 
@@ -427,6 +439,11 @@ clear_target_rgba :: proc(col : vec4) {
 clear_target :: proc {
   clear_target_rgb,
   clear_target_rgba, 
+}
+
+@(deferred_none=end_frame) 
+push_frame :: proc(pass : RenderPass) -> bool {
+  begin_frame(pass); return true
 }
 
 begin_frame :: proc(pass : RenderPass) {

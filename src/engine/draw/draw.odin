@@ -35,7 +35,7 @@ get_world_space :: proc(
   far : f32 = 1024.0,
   rotation : f32 = 0.0,
 ) -> CoordSpace {
-  half_size := cam_size
+  half_size := cam_size * 0.5
   proj := linalg.matrix_ortho3d(
     -half_size.x, half_size.x, 
     half_size.y, -half_size.y, 
@@ -70,13 +70,20 @@ get_screen_space :: proc(
   return {proj, view, inverse}
 }
 
+TextLayout :: struct {
+  bounds : vec4,
+  cursor : vec2,
+  baseline_y : f32,
+  line_height : f32,
+}
+
 text :: proc(
   value : string,
   pos : vec2,
   color : vec4 = 1,
   scale : f32 = 1,
   pivot : Pivot = .TopLeft
-) -> vec4 {
+) -> TextLayout {
   using render_state
   if len(value) == 0 do return {}
 
@@ -129,7 +136,7 @@ text :: proc(
       }
       char_pos := vec2{
           x + glyph.xoff * scale,
-          y + (glyph.yoff + f32(font_atlas.row_height))  * scale
+          y + glyph.yoff * scale + line_height
       }
       uv := vec4{
         f32(glyph.x0) / f32(font_atlas.atlas_width),
@@ -142,6 +149,11 @@ text :: proc(
     x += glyph.xadvance * scale
   }
 
-  return {start_x, start_y, max_width, total_height}
+  return TextLayout{
+    bounds = {start_x, start_y, max_width, total_height},
+    cursor = {x, y},
+    baseline_y = y,
+    line_height = line_height,
+  }
 }
 
