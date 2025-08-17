@@ -1,6 +1,6 @@
 package utils
 
-Pivot :: enum {
+Pivot :: enum u32 {
   TopLeft,
   TopCenter,
   TopRight,

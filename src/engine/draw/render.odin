@@ -387,7 +387,8 @@ push_rect :: proc(
 	color: vec4 = vec4{1, 1, 1, 1},
 	texcoords: vec4 = vec4{0, 0, 1, 1},
 	tex_id: u32 = 0,
-  pivot : Pivot = .TopLeft
+  pivot : Pivot = .TopLeft,
+  rotation : f32 = 0.0,
 ) {
 	state := &render_state
 
@@ -400,10 +401,17 @@ push_rect :: proc(
   
   offset := -utils.pivot_offset(pivot) * size
 
-	p0 := pos + offset
-	p1 := pos + vec2{size.x, 0} + offset
-	p2 := pos + vec2{size.x, size.y} + offset
-	p3 := pos + vec2{0, size.y} + offset
+  sin_val := math.sin(rotation)
+  cos_val := math.cos(rotation)
+  rotation_matrix := matrix[2,2]f32 {
+    cos_val, -sin_val,
+    sin_val, cos_val
+  }
+
+	p0 := pos + rotation_matrix * (offset)
+	p1 := pos + rotation_matrix * (vec2{size.x, 0} + offset)
+	p2 := pos + rotation_matrix * (vec2{size.x, size.y} + offset)
+	p3 := pos + rotation_matrix * (vec2{0, size.y} + offset)
 
 	uv0 := texcoords.xy
 	uv1 := vec2{texcoords.z, texcoords.y}

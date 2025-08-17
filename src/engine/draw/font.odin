@@ -1,7 +1,6 @@
 package draw
 
 import "core:fmt"
-import "core:os"
 import "core:strings"
 
 import gl "vendor:OpenGL"
@@ -36,23 +35,17 @@ DynamicFontAtlas :: struct {
 }
 
 
-init_dynamic_font_atlas :: proc(font_path : string, initial_size : i32 = 512, font_height: f32 = 15) -> bool {
+init_dynamic_font_atlas :: proc(initial_size : i32 = 512, font_height: f32 = 15) -> bool {
   using stbtt
   using render_state
   
-  font_data, read_ok := os.read_entire_file(font_path)
-  if !read_ok {
-    fmt.eprintln("Failed to load font:", font_path)
-    return false
-  }
 
-  if !InitFont(&font_atlas.font.font_info, raw_data(font_data), 0) {
+  if !InitFont(&font_atlas.font.font_info, raw_data(FONT_DATA), 0) {
     fmt.eprintln("Failed to initialize font")
-    delete(font_data)
     return false
   }
 
-  font_atlas.font.font_data = font_data
+  font_atlas.font.font_data = FONT_DATA
   font_atlas.font.scale = ScaleForPixelHeight(&font_atlas.font.font_info, font_height)
 
   ascent, descent, line_gap: i32
@@ -263,7 +256,7 @@ preload_ascii :: proc() {
 }
 
 init_font_system :: proc() {
-  if !init_dynamic_font_atlas(FONT_PATH, 512, FONT_HEIGHT) {
+  if !init_dynamic_font_atlas(512, FONT_HEIGHT) {
     fmt.eprintln("Failed to initialize font system")
     return
   }

@@ -12,9 +12,8 @@ MAX_TEXTURES :: 16
 WHITE_TEXTURE :: 0
 
 CHAR_COUNT  :: 96
-
-FONT_PATH :: "res/jetbrains_mono.ttf"
 FONT_HEIGHT :: 16
+FONT_DATA :: #load("jetbrains_mono.ttf")
 
 vec2 :: utils.vec2
 vec4 :: utils.vec4

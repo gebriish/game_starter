@@ -1,10 +1,16 @@
 package main
 
 import "core:fmt"
+import "core:math/rand"
 
 import "engine:draw"
 
 EntityHandle :: u32
+
+Settings :: struct {
+  
+  gamepad_index : u32,
+}
 
 ctx : GameState
 GameState :: struct {
@@ -14,16 +20,18 @@ GameState :: struct {
 
   player_handle : EntityHandle,
   camera_position : vec2,
-  camera_height : f32
+  camera_height : f32,
+
+  settings : Settings,
 }
 
 game_init :: proc() {
   ctx.entities = make([dynamic]Entity)
   ctx.free_list_head = 0
   ctx.next_handle = 1
-
   ctx.camera_height = 800
-  
+  ctx.camera_position = {0,-200}
+
   append(&ctx.entities, Entity{
     position = {0, 0},
     size = {0, 0},
@@ -34,9 +42,9 @@ game_init :: proc() {
 
   ctx.player_handle = create_entity()
   player := get_entity(ctx.player_handle)
-  player.size = {32,64}
+  player.size = {64,64}
   player.pivot = .BottomCenter
-  player.color = draw.color(0xebdbc7)
+  player.color = draw.color(0xffffff)
 
   floor := get_entity(create_entity())
   floor.size = {625,32}
@@ -50,6 +58,14 @@ game_update :: proc(delta_time : f32) {
   player_entity := get_entity(ctx.player_handle)
   control_player(player_entity, delta_time)
 
+  if player_entity.dashing {
+    ctx.camera_position = {
+      (rand.float32() * 2.0 - 1.0) * 2,
+      (rand.float32() * 2.0 - 1.0) * 2,
+    } + {0,-200}
+  } else {
+    ctx.camera_position = {0,-200}
+  }
 
   for &entity in get_entities() {
     if entity.slot_free { continue }

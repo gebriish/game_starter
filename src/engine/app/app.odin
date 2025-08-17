@@ -273,20 +273,6 @@ setup_callbacks :: proc(window : glfw.WindowHandle) {
     app_state.window_y = y
     app_state.resize_pending = true
   })
-
-  glfw.SetJoystickCallback(proc "c" (joy_id: i32, event: i32) {
-    context = runtime.default_context()
-
-    if joy_id < 0 || joy_id >= len(input_state.gamepads) do return
-      switch event {
-      case glfw.CONNECTED:
-        input_state.gamepads[joy_id].connected = true
-        fmt.printf("Gamepad %d connected\n", joy_id)
-      case glfw.DISCONNECTED:
-        input_state.gamepads[joy_id].connected = false
-        fmt.printf("Gamepad %d disconnected\n", joy_id)
-      }
-    })
 }
 
 get_seconds :: proc() -> f32 {

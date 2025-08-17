@@ -129,4 +129,3 @@ get_gamepad_triggers :: proc(gamepad_id: u32) -> [2]f32 {
     input_state.gamepads[gamepad_id].axes[.Right_Trigger]
   }
 }
-
