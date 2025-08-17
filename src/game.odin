@@ -49,7 +49,7 @@ game_init :: proc() {
   floor := get_entity(create_entity())
   floor.size = {625,32}
   floor.pivot = .TopCenter
-  floor.color = draw.color(0x282828)
+  floor.color = draw.color(0xb8bb26)
 }
 
 game_update :: proc(delta_time : f32) {

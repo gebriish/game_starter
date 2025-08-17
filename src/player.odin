@@ -25,7 +25,7 @@ get_player_input :: proc() -> FrameInput{
     left_axis.x = app.get_gamepad_axis(gamepad, .Left_X)
     left_axis.y = app.get_gamepad_axis(gamepad, .Left_Y)
 
-    input_data.dash_press = app.on_gamepad_button_down(gamepad, .Right_Bumper)
+    input_data.dash_press = app.on_gamepad_button_down(gamepad, .X)
 
     input_data.x_axis = left_axis.x
     input_data.y_axis = left_axis.y
@@ -57,14 +57,8 @@ control_player :: proc(entity : ^Entity, delta_time: f32) {
   input_data := get_player_input()
   axis_mag := input_data.x_axis * input_data.x_axis + input_data.y_axis * input_data.y_axis
 
-  if input_data.dash_press && axis_mag > 0.1 {
-    entity.dashing = true
-    entity.dash_timer = 0.35
-    entity.velocity = {input_data.x_axis, input_data.y_axis} * 1400
-  }
-
   if entity.dashing {
-    entity.color = draw.color(0x83a598)
+    entity.color = draw.color(0xd3869b)
     entity.dash_timer -= delta_time
     entity.dashing = entity.dash_timer > 0.0
     entity.velocity -= entity.velocity * delta_time * 10
@@ -82,9 +76,16 @@ control_player :: proc(entity : ^Entity, delta_time: f32) {
       if input_data.jump_press {
         entity.velocity.y = -400
       }
+
     } else {
       target_velocity_x := input_data.x_axis * 200
       entity.velocity.x += (target_velocity_x - entity.velocity.x) * delta_time * 4
+
+      if input_data.dash_press && axis_mag > 0.1 {
+        entity.dashing = true
+        entity.dash_timer = 0.35
+        entity.velocity = {input_data.x_axis, input_data.y_axis} * 1400
+      }
     }
 
     if entity.position.y < 0 {
