@@ -260,5 +260,5 @@ init_font_system :: proc() {
     fmt.eprintln("Failed to initialize font system")
     return
   }
-  //preload_ascii()
+  preload_ascii()
 }

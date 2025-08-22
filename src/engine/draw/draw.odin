@@ -156,4 +156,3 @@ text :: proc(
     line_height = line_height,
   }
 }
-

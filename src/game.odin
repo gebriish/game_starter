@@ -8,7 +8,6 @@ import "engine:draw"
 EntityHandle :: u32
 
 Settings :: struct {
-  
   gamepad_index : u32,
 }
 
@@ -22,6 +21,8 @@ GameState :: struct {
   camera_position : vec2,
   camera_height : f32,
 
+  time_scale : f32,
+
   settings : Settings,
 }
 
@@ -31,11 +32,11 @@ game_init :: proc() {
   ctx.next_handle = 1
   ctx.camera_height = 800
   ctx.camera_position = {0,-200}
+  ctx.time_scale = 1.0
 
   append(&ctx.entities, Entity{
     position = {0, 0},
     size = {0, 0},
-    pivot = .MidCenter,
     slot_free = false, // Scratch is never free
     free_next = 0,
   })
@@ -43,13 +44,14 @@ game_init :: proc() {
   ctx.player_handle = create_entity()
   player := get_entity(ctx.player_handle)
   player.size = {64,64}
-  player.pivot = .BottomCenter
   player.color = draw.color(0xffffff)
+  player.flags += {.Sprite}
 
   floor := get_entity(create_entity())
   floor.size = {625,32}
-  floor.pivot = .TopCenter
+  floor.position = {0,32+16}
   floor.color = draw.color(0xb8bb26)
+  player.flags += {.Sprite}
 }
 
 game_update :: proc(delta_time : f32) {
@@ -58,18 +60,11 @@ game_update :: proc(delta_time : f32) {
   player_entity := get_entity(ctx.player_handle)
   control_player(player_entity, delta_time)
 
-  if player_entity.dashing {
-    ctx.camera_position = {
-      (rand.float32() * 2.0 - 1.0) * 2,
-      (rand.float32() * 2.0 - 1.0) * 2,
-    } + {0,-200}
-  } else {
-    ctx.camera_position = {0,-200}
-  }
+  entities := get_entities()
 
-  for &entity in get_entities() {
+  //entity update pass
+  for &entity in  entities{
     if entity.slot_free { continue }
-
     entity.position += entity.velocity * delta_time
   }
 }
@@ -115,4 +110,8 @@ get_entity :: proc(handle : EntityHandle) -> ^Entity {
 
 get_entities :: proc() -> []Entity {
   return ctx.entities[1:]
+}
+
+set_timescale :: proc(scale : f32) {
+  ctx.time_scale = scale
 }

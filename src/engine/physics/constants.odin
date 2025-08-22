@@ -10,3 +10,6 @@ ivec4 :: utils.ivec4
 
 Pivot :: utils.Pivot
 
+
+GRAVITY :: 980
+

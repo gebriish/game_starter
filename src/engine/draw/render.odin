@@ -43,8 +43,8 @@ RenderVertex :: struct {
 }
 
 CoordSpace :: struct {
-  proj,
-  view,
+  proj : matrix[4,4]f32,
+  view : matrix[4,4]f32,
   inverse : matrix[4,4]f32,
 }
 
@@ -248,7 +248,6 @@ render_init :: proc(set_proc_addr : gl.Set_Proc_Address_Type) {
   render_state.view_loc = gl.GetUniformLocation(render_state.shader, "u_view")
   render_state.proj_loc = gl.GetUniformLocation(render_state.shader, "u_proj")
   render_state.tex_slots_loc = gl.GetUniformLocation(render_state.shader, "u_texslots")
-
 
   samplers := [MAX_TEXTURES]i32 {}
   for i in 0..<MAX_TEXTURES {
